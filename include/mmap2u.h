@@ -207,16 +207,19 @@ protected:
 	/// \brief Hill climbing search
 	///
 	void hill_climbing();
+	void hill_climbing2();
 
 	///
 	/// \brief Taboo search
 	///
 	void taboo_search();
+	void taboo_search2();
 	
 	///
 	/// \brief Simulated annealing
 	///
 	void simulated_annealing();
+	void simulated_annealing2();
 	
 	///
 	/// \brief Calculate the score of a MAP configuration

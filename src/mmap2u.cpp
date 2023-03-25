@@ -201,7 +201,8 @@ std::vector<size_t> mmap2u::init_config() {
         std::vector<size_t> config;
         for (size_t i = 0; i < m_query.size(); ++i) {
             variable x = var(m_query[i]);
-            size_t val = randi2(x.states());
+            //size_t val = randi2(x.states());
+            size_t val = (randu() < 0.5 ? 0 : 1);
             config.push_back(val);
         }
 
@@ -271,6 +272,14 @@ void mmap2u::find_neighbors(const std::vector<size_t>& config,
         }
     }
 
+    // std::cout << "[DEBUG] config = ";
+    // std::copy(config.begin(), config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    // std::cout << std::endl;
+    // for (size_t j = 0; j < neighbors.size(); ++j) {
+    //     std::cout << "[DEBUG] neighb = ";
+    //     std::copy(neighbors[j].begin(), neighbors[j].end(), std::ostream_iterator<size_t>(std::cout, " "));
+    //     std::cout << std::endl;
+    // }
     assert(neighbors.size() > 0);
 
 }
@@ -400,6 +409,180 @@ void mmap2u::hill_climbing() {
     m_best_score = best_score;
 }
 
+// Hill climbing
+void mmap2u::hill_climbing2() {
+
+    // Init the cache
+    std::map<std::string, double> cache;
+
+    // Prologue
+    std::cout << "[HC] Running Stochastic Hill Climbing for MMAP" << std::endl;
+    std::cout << "[HC] Initialization method: " << m_init_method << std::endl;
+    std::cout << "[HC] Total iterations: " << m_iterations << std::endl;
+    std::cout << "[HC] Flips per iteration: " << m_max_flips << std::endl;
+    std::cout << "[HC] Random flip probability: " << m_flip_probability << std::endl;
+    std::cout << "[HC] Max cached configs: " << m_cache_size << std::endl;
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        std::cout << "[HC] Query type: maximax" << std::endl;
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        std::cout << "[HC] Query type: maximin" << std::endl;
+    } else {
+        std::cout << "[HC] Query type: interval" << std::endl;
+    }
+
+    // Keep track of the overall best configuration
+    std::vector<size_t> best_config, current_config;
+    double best_score = -1.0, current_score = -1.0;
+    size_t total_flips = 0, total_hits = 0;
+
+    // Perform stochastic hill climbing for a number of iterations
+    size_t num_sols = 0;
+    for (size_t iter = 1; iter <= m_iterations; ++iter) {
+
+        // Start with a new random initial config
+        current_config = init_config();
+        std::string ckey = make_key(current_config);
+        std::map<std::string, double>::iterator mi = cache.find(ckey);
+        if (mi != cache.end()) {
+            total_hits++;
+            current_score = mi->second;
+        } else {
+            current_score = score(current_config);
+            cache[ckey] = current_score;
+        }
+
+        std::cout << " Iteration #" << iter << " ... " << std::endl;
+        std::cout << "   New initial solution: ";
+        std::copy(current_config.begin(), current_config.end(), 
+            std::ostream_iterator<size_t>(std::cout, " "));
+        std::cout << std::endl;
+        std::cout << "   New initial score: " << current_score << " (" << std::log10(current_score) << ")" << std::endl;
+        std::vector<size_t> best_config_iter;
+        double best_score_iter = -1.0;
+
+        // Keep track of the overall best configuration
+        if (current_score > best_score) {
+            best_config = current_config;
+            best_score = current_score;
+        }
+
+        // Keep track of the best config during current iteration
+        if (current_score > best_score_iter) {
+            best_config_iter = current_config;
+            best_score_iter = current_score;
+        }
+
+        // Start flipping variables
+        for (size_t flip = 1; flip <= m_max_flips; ++flip) {
+            total_flips++;
+
+            // Next config (neighbor) to move to
+            std::vector<size_t> next_config;
+            double next_score = -1.0;
+
+            // Neighbors of the current config
+            std::vector<std::vector<size_t> > neighbors;
+            find_neighbors(current_config, neighbors);
+
+            // Toss the coin (p)
+            double p = randu();
+            if (p <= m_flip_probability) {
+                // Select a random neighbor
+                size_t j = randi2((int)neighbors.size()); // random neighbor
+                next_config = neighbors[j];
+                std::string ckey = make_key(next_config);
+                std::map<std::string, double>::iterator ci = cache.find(ckey);
+                if (ci != cache.end()) {
+                    total_hits++;
+                    next_score = ci->second;
+                } else {
+                    next_score = score(next_config);
+                    cache[ckey] = next_score;
+                }
+            } else {
+                // Find the best scoring neighbor
+                double best_neighbor_score = -1.0;
+                std::vector<size_t> best_neighbor;
+                for (size_t k = 0; k < neighbors.size(); ++k) {
+                    std::string nkey = make_key(neighbors[k]);
+                    double neighbor_score = -1.0;
+                    std::map<std::string, double>::iterator ci = cache.find(nkey);
+                    if (ci != cache.end()) {
+                        neighbor_score = ci->second;
+                    } else {
+                        neighbor_score = score(neighbors[k]);
+                        cache[nkey] = neighbor_score;
+                    }
+
+                    if (neighbor_score > best_neighbor_score) {
+                        best_neighbor_score = neighbor_score;
+                        best_neighbor = neighbors[k];
+                    }
+                }
+
+                // If best scoring neighbor is better then keep it
+                if (best_neighbor_score > current_score) {
+                    next_config = best_neighbor;
+                    next_score = best_neighbor_score;
+                } else { // Otherwise, select a random neighbor
+                    size_t j = randi2((int)neighbors.size()); // random neighbor
+                    next_config = neighbors[j];
+                    std::string ckey = make_key(next_config);
+                    std::map<std::string, double>::iterator ci = cache.find(ckey);
+                    if (ci != cache.end()) {
+                        total_hits++;
+                        next_score = ci->second;
+                    } else {
+                        next_score = score(next_config);
+                        cache[ckey] = next_score;
+                    }
+                }
+            }
+
+            // Check if next config score is better in the current iteration
+            if (next_score > best_score_iter) {
+                best_score_iter = next_score;
+                best_config_iter = next_config;
+
+                std::cout << "   - found better solution [" << best_score_iter << " (" << std::log10(best_score_iter) << ")" << "] after " << total_flips << " flips: ";
+                std::copy(best_config_iter.begin(), best_config_iter.end(), 
+                    std::ostream_iterator<size_t>(std::cout, " "));
+                std::cout << std::endl;
+            } 
+
+            // Keep track of the overall best config
+            if (next_score > best_score) {
+                best_score = next_score;
+                best_config = next_config;
+                num_sols++;                
+            }
+
+            // Move to the next config
+            current_config = next_config;
+            current_score = next_score;
+
+            // Prune cache table if full
+            while (cache.size() > m_cache_size) {
+                cache.erase(cache.begin());
+            }
+        }
+        std::cout << "   - finished after " << m_max_flips << " flips, " << total_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    }
+
+    std::cout << "[HC] Best solution: ";
+    std::copy(best_config.begin(), best_config.end(), 
+        std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl << "[HC] Best score: " << best_score << " (" << std::log10(best_score) << ")" << std::endl;
+    std::cout << "[HC] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[HC] Solutions found: " << num_sols << std::endl;
+    std::cout << "[HC] Total flips: " << total_flips << std::endl;
+    std::cout << "[HC] Total hits: " << total_hits << std::endl;
+
+    // Save best solution (and score)
+    m_best_config = best_config;
+    m_best_score = best_score;
+}
+
 std::string mmap2u::make_key(const std::vector<size_t>& config) {
     std::ostringstream oss;
     for (size_t i = 0; i < m_query.size(); ++i) {
@@ -484,6 +667,7 @@ void mmap2u::taboo_search() {
                     cache[nkey] = neighbor_score;
                 }
 
+                // Check the taboo list
                 std::map<std::string, bool>::iterator mi = taboo_list.find(nkey);
                 bool in_taboo = (mi != taboo_list.end());
                 if (!in_taboo && (neighbor_score > best_neighbor_score)) {
@@ -539,6 +723,183 @@ void mmap2u::taboo_search() {
     std::cout << std::endl << "[TS] Best score: " << best_score << std::endl;
     std::cout << "[TS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[TS] Solutions found: " << num_sols << std::endl;
+
+    // Save best solution (and score)
+    m_best_config = best_config;
+    m_best_score = best_score;
+}
+
+// Tabu search
+void mmap2u::taboo_search2() {
+
+    // Init the cache
+    std::map<std::string, double> cache;
+
+    // Initialize the taboo search
+    std::cout << "[TS] Running Taboo Search for MMAP" << std::endl;
+    std::cout << "[TS] Initialization method: " << m_init_method << std::endl;
+    std::cout << "[TS] Total iterations: " << m_iterations << std::endl;
+    std::cout << "[TS] Flips per iteration: " << m_max_flips << std::endl;
+    std::cout << "[TS] Taboo list size: " << m_taboo_size << std::endl;
+    std::cout << "[TS] Max cached configs: " << m_cache_size << std::endl;
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        std::cout << "[TS] Query type: maximax" << std::endl;
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        std::cout << "[TS] Query type: maximin" << std::endl;
+    } else {
+        std::cout << "[TS] Query type: interval" << std::endl;
+    }
+
+    // Keep track of the overall best configuration
+    std::vector<size_t> best_config, current_config;
+    double best_score = -1.0, current_score = -1.0;
+
+    // Create the taboo list
+    std::map<std::string, bool> taboo_list; // keeps track of visited configs
+
+    // Perform taboo search for a number of iterations
+    size_t num_sols = 0, total_flips = 0, total_hits = 0;
+    for (size_t iter = 1; iter <= m_iterations; ++iter) {
+
+        // Best config in the current iteration
+        std::vector<size_t> best_config_iter;
+        double best_score_iter = -1.0;
+
+        // Generate a new random intial configuration
+        current_config = init_config();
+        taboo_list.clear();
+        std::string ckey = make_key(current_config);
+        std::map<std::string, double>::iterator mi = cache.find(ckey);
+        if (mi != cache.end()) {
+            current_score = mi->second;
+            total_hits++;
+        } else {
+            current_score = score(current_config);
+            cache[ckey] = current_score;
+        }
+        std::cout << " Iteration #" << iter << " ... " << std::endl;
+        std::cout << "   New initial solution: ";
+        std::copy(current_config.begin(), current_config.end(), 
+            std::ostream_iterator<size_t>(std::cout, " "));
+        std::cout << std::endl;
+        std::cout << "   New initial score: " << current_score << " (" << std::log10(current_score) << ")" << std::endl;
+
+        // Keep track of the overall best configuration
+        if (current_score > best_score) {
+            best_config = current_config;
+            best_score = current_score;
+        }
+
+        // Keep track of the best config in the current iteration
+        if (current_score > best_score_iter) {
+            best_config_iter = current_config;
+            best_score_iter = current_score;
+        }
+
+        // Repeat for a number of max flips per iteration
+        for (size_t flip = 1; flip <= m_max_flips; ++flip) {
+
+            total_flips++;
+            
+            // Add current config to taboo list (if enough space)
+            assert(taboo_list.size() <= m_taboo_size);            
+            std::string key = make_key(current_config);
+            taboo_list[key] = true;
+
+            // Find the best neighbor NOT in the taboo list
+            double best_neighbor_score = -1.0;
+            std::vector<size_t> best_neighbor;            
+            std::vector<std::vector<size_t> > neighbors;
+            find_neighbors(current_config, neighbors);
+            for (size_t k = 0; k < neighbors.size(); ++k) {
+                double neighbor_score = -1.0;
+                std::string nkey = make_key(neighbors[k]);
+                
+                // Check if neighbor in taboo list (ignore if yes)
+                std::map<std::string, bool>::iterator ti = taboo_list.find(nkey);
+                if (ti == taboo_list.end()) {
+                    // Compute the score
+                    std::map<std::string, double>::iterator ci = cache.find(nkey);
+                    if (ci != cache.end()) {
+                        total_hits++;
+                        neighbor_score = ci->second;
+                    } else {
+                        neighbor_score = score(neighbors[k]);
+                        cache[nkey] = neighbor_score;
+                    }
+
+                    // Keep track of the best scoring neighbor not in taboo list
+                    if (neighbor_score > best_neighbor_score) {
+                        best_neighbor_score = neighbor_score;
+                        best_neighbor = neighbors[k];
+                    }
+                }
+            }
+
+            // If no such neighbor exists then select one at random
+            std::vector<size_t> next_config;
+            double next_score = -1.0;
+            if (best_neighbor_score == -1.0) {
+                size_t j = randi2((int)neighbors.size()); // random neighbor
+                next_config = neighbors[j];
+                std::string ckey = make_key(next_config);
+                std::map<std::string, double>::iterator ci = cache.find(ckey);
+                if (ci != cache.end()) {
+                    next_score = ci->second;
+                    total_hits++;
+                } else {
+                    next_score = score(next_config);
+                    cache[ckey] = next_score;
+                }
+            } else { // Found the best neighbor not in taboo list
+                next_config = best_neighbor;
+                next_score = best_neighbor_score;
+            }
+
+            // Keep track of best config in current iteration
+            if (next_score > best_score_iter) {
+                best_score_iter = next_score;
+                best_config_iter = next_config;
+
+                std::cout << "   - found better solution [" << best_score_iter << " (" << std::log10(best_score_iter) << ")" << "] after " << total_flips << " flips: ";
+                std::copy(best_config.begin(), best_config.end(), 
+                    std::ostream_iterator<size_t>(std::cout, " "));
+                std::cout << std::endl;
+            }
+
+            // Keep track of the overall best config
+            if (next_score > best_score) {
+                best_config = next_config;
+                best_score = next_score;
+                num_sols++;
+            }
+
+            // Move to the next config
+            current_config = next_config;
+            current_score = next_score;
+
+            // Prune taboo list if full
+            if (taboo_list.size() > m_taboo_size) {
+                taboo_list.erase(taboo_list.begin());
+            }
+
+            // Prune cache table if full
+            while (cache.size() > m_cache_size) {
+                cache.erase(cache.begin());
+            }
+        }
+
+        std::cout << "   - finished after " << total_flips << " flips, " << total_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    }
+
+    std::cout << "[TS] Best solution: ";
+    std::copy(best_config.begin(), best_config.end(), 
+        std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl << "[TS] Best score: " << best_score << " (" << std::log10(best_score) << ")" << std::endl;
+    std::cout << "[TS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[TS] Solutions found: " << num_sols << std::endl;
+    std::cout << "[TS] Total flips: " << total_flips << std::endl;
+    std::cout << "[TS] Total hits: " << total_hits << std::endl;
 
     // Save best solution (and score)
     m_best_config = best_config;
@@ -662,9 +1023,9 @@ void mmap2u::run() {
 
     // Run the search algorithms
     if (m_search_method.compare("hc") == 0) { // hill climbing
-        hill_climbing();
+        hill_climbing2();
     } else if (m_search_method.compare("ts") == 0) { // tabu search
-        taboo_search();
+        taboo_search2();
     } else if (m_search_method.compare("sa") == 0) { // simulated annealing
         simulated_annealing();
     }
