@@ -800,7 +800,7 @@ void mmap2u::taboo_search2() {
         for (size_t flip = 1; flip <= m_max_flips; ++flip) {
 
             total_flips++;
-            
+
             // Add current config to taboo list (if enough space)
             assert(taboo_list.size() <= m_taboo_size);            
             std::string key = make_key(current_config);
@@ -1012,6 +1012,128 @@ void mmap2u::simulated_annealing() {
     m_best_score = best_score;
 }
 
+void mmap2u::simulated_annealing2() {
+
+    // Init the cache
+    std::map<std::string, double> cache;
+
+    // Generate the initial configuration
+    std::cout << "[SA] Running Simulated Annealing for MMAP" << std::endl;
+    std::cout << "[SA] Initialization method: " << m_init_method << std::endl;
+    std::cout << "[SA] Total iterations: " << m_iterations << std::endl;
+    std::cout << "[SA] Flips per iteration: " << m_max_flips << std::endl;
+    std::cout << "[SA] Max cached configs: " << m_cache_size << std::endl;
+    std::cout << "[SA] Initial temperature: " << m_init_temperature << std::endl;
+    std::cout << "[SA] Cooling factor (alpha): " << m_alpha << std::endl;
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        std::cout << "[SA] Query type: maximax" << std::endl;
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        std::cout << "[SA] Query type: maximin" << std::endl;
+    } else {
+        std::cout << "[SA] Query type: interval" << std::endl;
+    }
+
+    std::vector<size_t> current_config = init_config();
+    double current_score = score(current_config);
+    cache[make_key(current_config)] = current_score;
+
+    std::cout << "[SA] Initial solution: ";
+    std::copy(current_config.begin(), current_config.end(), 
+        std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[SA] Initial score: " << current_score << " (" << std::log10(current_score) << ")" << std::endl;
+
+    // Keep track of the overall best configuration
+    std::vector<size_t> best_config = current_config;
+    double best_score = current_score;
+    size_t total_flips = 0, total_hits = 0;
+
+    // Perform simulated annealing for a number of iterations (restart annealing)
+    size_t num_sols = 0;
+    for (size_t iter = 1; iter <= m_iterations; ++iter) {
+
+        // Restart annealing from the current best config
+        std::vector<size_t> current_config = best_config;
+        double current_score = best_score;
+        double T = m_init_temperature;
+        std::cout << " Iteration #" << iter << " ... " << std::endl;
+        std::cout << "   - initial temperature: " << T << std::endl;
+        // Perform simulated annealing for a max number of flips
+        for (size_t flip = 1; flip <= m_max_flips; ++flip) {
+            total_flips++;
+
+            // Attempt to move to a random neighbor
+            std::vector<size_t> next_config;
+            double next_score = -1.0;
+            std::vector<std::vector<size_t> > neighbors;
+            find_neighbors(current_config, neighbors);
+            size_t j = randi2((int)neighbors.size()); // random neighbor
+            next_config = neighbors[j];
+            std::string ckey = make_key(next_config);
+            std::map<std::string, double>::iterator ci = cache.find(ckey);
+            if (ci != cache.end()) {
+                next_score = ci->second;
+                total_hits++;
+            } else {
+                next_score = score(next_config);
+                cache[ckey] = next_score;
+            }
+
+            // Compute Metropolis acceptance criterion (mac)
+            double delta = std::log10(next_score) - std::log10(current_score);            
+            if (delta > 0) { // next config is better; accept it
+                current_config = next_config;
+                current_score = next_score;
+            } else {
+                double p = randu();
+                double threshold = std::exp(delta/T); // Metropolis acceptance criterion
+                if (p < threshold) {
+                    current_config = next_config; // move to a worse config
+                    current_score = next_score;
+                }
+            }
+
+            // Keep track of best config in the current iteration
+            if (current_score > best_score) {
+                best_config = current_config;
+                best_score = current_score;
+                num_sols++;
+
+                std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")" << "] after " << flip << " flips: ";
+                std::copy(best_config.begin(), best_config.end(), 
+                    std::ostream_iterator<size_t>(std::cout, " "));
+                std::cout << std::endl;
+            }
+
+            // Adjust the temperature
+            if (flip % 100 == 0) {
+                T *= m_alpha;
+            }
+
+            // Prune cache table if full
+            while (cache.size() > m_cache_size) {
+                cache.erase(cache.begin());
+            }
+        }
+
+        std::cout << "   - final temperature: " << T << std::endl;
+        std::cout << "   - finished after " << total_flips << " flips, " << total_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    }
+
+    std::cout << "[SA] Best solution: ";
+    std::copy(best_config.begin(), best_config.end(), 
+        std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl << "[SA] Best score: " << best_score << " (" << std::log10(best_score) << ")" << std::endl;
+    std::cout << "[SA] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[SA] Solutions found: " << num_sols << std::endl;
+    std::cout << "[SA] Total flips: " << total_flips << std::endl;
+    std::cout << "[SA] Total hits: " << total_hits << std::endl;
+
+    // Save best solution (and score)
+    m_best_config = best_config;
+    m_best_score = best_score;
+}
+
 // Run solver
 void mmap2u::run() {
 
@@ -1027,7 +1149,7 @@ void mmap2u::run() {
     } else if (m_search_method.compare("ts") == 0) { // tabu search
         taboo_search2();
     } else if (m_search_method.compare("sa") == 0) { // simulated annealing
-        simulated_annealing();
+        simulated_annealing2();
     }
 }
 
