@@ -68,13 +68,13 @@ public:
 	~bn2cn() {
 	};
 
-	inline const factor& belief(size_t i) const {
+	inline const interval& belief(size_t i) const {
 		throw std::runtime_error("not implemented");
 	}
-	inline const factor& belief(variable v) const {
+	inline const interval& belief(variable v) const {
 		throw std::runtime_error("not implemented");
 	}
-	inline const std::vector<factor>& beliefs() const {
+	inline const std::vector<interval>& beliefs() const {
 		throw std::runtime_error("not implemented");
 	}
 

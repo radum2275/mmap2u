@@ -28,7 +28,7 @@
 #define IBM_LOOPY_BAYES_NET_H_
 
 #include "enum.h"
-#include "factor.h"
+#include "interval.h"
 #include "graph.h"
 #include "directed_graph.h"
 
@@ -96,7 +96,7 @@ public:
 	/// \brief Constructor from a list of factors.
 	/// \param fs 	The list of factors
 	///
-	bayes_net(std::vector<factor> fs) :
+	bayes_net(std::vector<interval> fs) :
 			directed_graph(), m_factors(fs), m_vadj(), m_dims() {
 		fixup();
 	};
@@ -164,11 +164,11 @@ public:
 
 		// Read the factor tables (ensure conversion to ordered scopes)
 		double pval;
-		std::vector<factor> factors(ncliques);
+		std::vector<interval> factors(ncliques);
 		for (size_t i = 0; i < ncliques; i++) {
 			is >> nval;
 			assert(nval == sets[i].num_states());
-			factors[i] = factor(sets[i]); // preallocate memory
+			factors[i] = interval(sets[i]); // preallocate memory
 			factors[i].set_child(cliques[i].back().label());
 			
 			convert_index ci(cliques[i], false, true); // convert from source order (littleEndian) to target order (bigEndian)
@@ -176,7 +176,7 @@ public:
 				size_t k = ci.convert(j);	// get the index in the factor table
 				is >> pval; // read the probability
 
-				factors[i][k] = factor::value(pval, pval); // save the factor value into the table
+				factors[i][k] = interval::value(pval, pval); // save the factor value into the table
 			}
 		}
 
@@ -214,7 +214,7 @@ public:
 	/// \param idx 	The index of the factor
 	/// \return the factor corresponding to that index.
 	///
-	const factor& get_factor(findex idx) const {
+	const interval& get_factor(findex idx) const {
 		return m_factors[idx];
 	};
 
@@ -222,7 +222,7 @@ public:
 	/// \brief Set a factor
 	/// \param i	The index of the factor
 	/// \param f	The new factor
-	void set_factor(findex i, const factor& f) {
+	void set_factor(findex i, const interval& f) {
 		m_factors[i] = f;
 	}
 
@@ -230,7 +230,7 @@ public:
 	/// \brief Accessor for the factor container.
 	/// \return the list of factors of the model.
 	///
-	const std::vector<factor>& get_factors() const {
+	const std::vector<interval>& get_factors() const {
 		return m_factors;
 	};
 
@@ -346,7 +346,7 @@ public:
 	/// \param F 	The factor to be added
 	/// \return the index associated with the newly added factor.
 	///
-	virtual findex add_factor(const factor& F) {         // add a factor to our collection
+	virtual findex add_factor(const interval& F) {         // add a factor to our collection
 		const variable_set& v = F.vars();
 		findex use = add_node();
 		//if (use>=nFactors()) _factors.push_back(F); else _factors[use]=F;
@@ -354,7 +354,7 @@ public:
 			if (m_factors.capacity() > num_factors())
 				m_factors.push_back(F);
 			else {                           // if we'd need to copy, do it manually
-				std::vector<factor> tmp;
+				std::vector<interval> tmp;
 				tmp.reserve(2 * num_factors());
 				tmp.resize(num_factors() + 1);
 				for (size_t i = 0; i < m_factors.size(); ++i)
@@ -384,7 +384,7 @@ public:
 	/// 
 	virtual void remove_factor(findex idx) {        // remove a factor from the collection
 		erase(m_vadj, idx, get_factor(idx).vars());		// remove from variable lists
-		m_factors[idx] = factor();                       // empty its position
+		m_factors[idx] = interval();                       // empty its position
 		remove_node(idx);								// and remove the node
 	}
 
@@ -778,7 +778,7 @@ protected:
 		size_t nVar = 0;
 		m_vadj.clear();
 		m_dims.clear();
-		for (std::vector<merlin::factor>::iterator f = m_factors.begin();
+		for (std::vector<merlin::interval>::iterator f = m_factors.begin();
 				f != m_factors.end(); ++f) {
 			if (f->nvar())
 				nVar = std::max(nVar, f->vars().rbegin()->label() + 1);
@@ -856,7 +856,7 @@ protected:
 protected:
 	// Members:
 
-	std::vector<factor> m_factors;  ///< Collection of all factors in the model.
+	std::vector<interval> m_factors;  ///< Collection of all factors in the model.
 
 private:
 	// Members:

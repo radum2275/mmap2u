@@ -29,6 +29,7 @@
 #include "credal_net.h"
 #include "algorithm.h"
 #include "loopy2u.h"
+#include "potential.h"
 
 namespace merlin {
 
@@ -47,6 +48,28 @@ public:
 	typedef credal_net::flist flist;          ///< Collection of factor indices
 
 public:
+
+	class bucket {
+	public:
+		bucket() : m_variable(-1) {};
+		~bucket() {};
+		void set_variable(int v) {
+			m_variable = v;
+		}
+		int get_variable() {
+			return m_variable;
+		}
+		void add_potential(const potential& p) {
+			m_potentials.push_back(p);
+		}
+		std::vector<potential>& potentials() {
+			return m_potentials;
+		}
+
+	protected:
+		int m_variable;
+		std::vector<potential> m_potentials;
+	};
 
 	///
 	/// \brief Default constructor.
@@ -73,13 +96,13 @@ public:
 		}
 	};
 
-	inline const factor& belief(size_t i) const {
+	inline const interval& belief(size_t i) const {
 		return m_beliefs[i];
 	}
-	inline const factor& belief(variable v) const {
+	inline const interval& belief(variable v) const {
 		return m_beliefs[v];
 	}
-	inline const std::vector<factor>& beliefs() const {
+	inline const std::vector<interval>& beliefs() const {
 		return m_beliefs;
 	}
 
@@ -204,23 +227,28 @@ public:
 protected:
 
 	///
-	/// \brief Hill climbing search
+	/// \brief Stochastic Hill Climbing (local search)
 	///
-	void hill_climbing();
 	void hill_climbing2();
 
 	///
-	/// \brief Taboo search
+	/// \brief Taboo Search (local search)
 	///
-	void taboo_search();
 	void taboo_search2();
 	
 	///
-	/// \brief Simulated annealing
+	/// \brief Simulated Annealing (local search)
 	///
-	void simulated_annealing();
 	void simulated_annealing2();
 	
+	/// @brief Guided Local Search (local search)
+	void guided_local_search2();
+
+	///
+	/// \brief Variable Elimination (exact)
+	///
+	void variable_elimination2();
+
 	///
 	/// \brief Calculate the score of a MAP configuration
 	///
@@ -272,7 +300,7 @@ protected:
 	// Members:
 
 	variable_order_t m_order;						///< Variable order
-	std::vector<factor> m_beliefs; 					///< Marginals
+	std::vector<interval> m_beliefs; 					///< Marginals
 	std::map<size_t, size_t> m_evidence;			///< Evidence
 	std::vector<size_t> m_query;					///< Query
 	size_t m_iterations;							///< Number of iterations

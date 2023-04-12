@@ -544,6 +544,26 @@ int Merlin::run() {
 				s.set_query(m_query);
 				s.run();
 				s.write_solution(std::cout, m_outputFormat);
+			} else if (m_algorithm == MERLIN_ALGO_MMAP_CVE) {
+				merlin::mmap2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "StopIter=" << m_iterations << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitMethod=" << m_init_method << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "SearchMethod=cve,"
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.set_query(m_query);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
 			} else if (m_algorithm == MERLIN_ALGO_CONVERT) {
 				merlin::bn2cn s(m_gmo);
 				std::ostringstream oss;

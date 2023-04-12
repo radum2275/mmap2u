@@ -17,11 +17,12 @@ add_executable(loopy
     src/main.cpp
     src/bn2cn.cpp
     src/directed_graph.cpp
-    src/factor.cpp
+    src/interval.cpp
     src/graph.cpp
     src/generator.cpp
     src/ipe2u.cpp
     src/loopy2u.cpp
+    src/cve2u.cpp
     src/merlin.cpp
     src/program_options.cpp
     src/utils.cpp
@@ -33,6 +34,7 @@ add_executable(loopy
     include/credal_net.h
     include/directed_graph.h
     include/enum.h
+    include/interval.h
     include/factor.h
     include/generator.h
     include/graph.h
@@ -40,6 +42,7 @@ add_executable(loopy
     include/indexed_heap.h
     include/ipe2u.h
     include/loopy2u.h
+    include/cve2u.h
     include/merlin.h
     include/mmap2u.h
     include/program_options.h

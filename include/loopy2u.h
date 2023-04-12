@@ -49,14 +49,14 @@ public:
 	public:
 		variable parent; // parent (Ui)
 		variable child; // child (X)
-		factor pi; // message from parent to child: pi(Ui)
-		factor lambda; // message from child to parent: scalar
+		interval pi; // message from parent to child: pi(Ui)
+		interval lambda; // message from child to parent: scalar
 		bool evidence; // dummy message for evidence nodes
 		message(variable p, variable c) {
 			parent = p;
 			child = c;
-			pi = factor(factor::value(1.0, 1.0)); // scalar (only p=1)
-			lambda = factor(factor::value(1.0, 1.0)); // scalar
+			pi = interval(interval::value(1.0, 1.0)); // scalar (only p=1)
+			lambda = interval(interval::value(1.0, 1.0)); // scalar
 			evidence = false;
 		}
 	};
@@ -80,7 +80,7 @@ public:
 	///
 	/// \brief Constructor with a set of factors.
  	///
-	loopy2u(const std::vector<factor>& fs) : credal_net(fs) {
+	loopy2u(const std::vector<interval>& fs) : credal_net(fs) {
 		set_properties();
 	}
 
@@ -90,13 +90,13 @@ public:
 	~loopy2u() {
 	};
 
-	inline const factor& belief(size_t i) const {
+	inline const interval& belief(size_t i) const {
 		return m_beliefs[i];
 	}
-	inline const factor& belief(variable v) const {
+	inline const interval& belief(variable v) const {
 		return m_beliefs[v];
 	}
-	inline const std::vector<factor>& beliefs() const {
+	inline const std::vector<interval>& beliefs() const {
 		return m_beliefs;
 	}
 
@@ -153,6 +153,7 @@ public:
 				break;
 			case Property::Threshold:
 				m_threshold = atof(asgn[1].c_str());
+				break;
 			case Property::Verbose:
 				m_verbose = atol(asgn[1].c_str());
 				break;
@@ -236,18 +237,18 @@ protected:
 	// Members:
 
 	variable_order_t m_order;						///< Variable order
-	std::vector<factor> m_beliefs; 					///< Marginals
+	std::vector<interval> m_beliefs; 					///< Marginals
 	std::map<size_t, size_t> m_evidence;			///< Evidence
 	size_t m_iterations;							///< Number of iterations
 	double m_threshold;								///< Convergence threshold (default=1e-06)
 	std::vector<size_t> m_schedule;					///< Propagation schedule
 	size_t m_verbose;								///< Verbosity level
-	std::vector<factor> m_pi;						///< Pi's for each variable x 
-	std::vector<factor> m_lambda;					///< Lambda's for each variable x
+	std::vector<interval> m_pi;						///< Pi's for each variable x 
+	std::vector<interval> m_lambda;					///< Lambda's for each variable x
 	std::vector<loopy2u::message> m_messages;		///< Edge messages	
 	std::vector<std::vector<size_t> > m_incoming;	///< Parents of a node (incoming)
 	std::vector<std::vector<size_t> > m_outgoing;	///< Children of a node (outgoing)
-	factor::value m_delta;							///< Average change in messages
+	interval::value m_delta;							///< Average change in messages
 	size_t m_seed;									///< Random number generator seed
 };
 

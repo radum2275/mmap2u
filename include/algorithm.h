@@ -28,7 +28,7 @@
 #define IBM_MERLIN_ALGORITHM_H_
 
 #include "base.h"
-#include "factor.h"
+#include "interval.h"
 
 ///
 /// \namespace merlin 
@@ -83,7 +83,7 @@ public:
 	///		represented by the Factor class.
 	/// \param i 	The index of the node in the graph (from 0)
 	///
-	virtual const factor& belief(size_t i) const = 0;
+	virtual const interval& belief(size_t i) const = 0;
 
 	///
 	/// \brief Belief associated with a particular variable.
@@ -93,7 +93,7 @@ public:
 	///		graphical model. The belief is a function
 	///		represented by the Factor class.
 	///
-	virtual const factor& belief(variable v) const = 0;
+	virtual const interval& belief(variable v) const = 0;
 
 	///
 	/// \brief Beliefs associated with the variables.
@@ -103,7 +103,7 @@ public:
 	///		graphical model (one belief for each of the variables). The output
 	///		vector is indexed by the same indexes used for the variables.
 	///
-	virtual const std::vector<factor>& beliefs() const = 0;	// or all of them
+	virtual const std::vector<interval>& beliefs() const = 0;	// or all of them
 
 
 	///

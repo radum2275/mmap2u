@@ -31,8 +31,16 @@ void mmap2u::init() {
 	std::cout << "[MMAP] Begin initialization ..." << std::endl;
 	std::cout << "[MMAP] Random generator seed: " << m_seed << std::endl;
 	rand_seed(m_seed); // set the random number generator seed
-    std::cout << "[MMAP] Initialize scorer ..." << std::endl;
-    init_scorer();
+
+    // Init scorer for shc, ts, sa and gls
+    if ( (m_search_method.compare("shc") == 0)
+        || (m_search_method.compare("ts") == 0)
+        || (m_search_method.compare("sa") == 0)
+        || (m_search_method.compare("gls") == 0) ) {
+
+        std::cout << "[MMAP] Initialize scorer ..." << std::endl;
+        init_scorer();
+    }
 }
 
 // Initialize scorer: apply HMM transformation to the MAP and evidence variables 
@@ -55,7 +63,7 @@ void mmap2u::init_scorer() {
     std::cout << std::endl;
 
     // Get the original factors
-    std::vector<factor> fs = get_factors();
+    std::vector<interval> fs = get_factors();
     
     // Add auxiliary variables and deterministic factors
     size_t x = nvar();
@@ -68,7 +76,7 @@ void mmap2u::init_scorer() {
             scope |= prev.back();
         }
 
-        factor f(scope);
+        interval f(scope);
         f.set_child(x + i);
         prev.push_back(ch);
         fs.push_back(f);
@@ -100,8 +108,8 @@ void mmap2u::update_aux_factors(const std::map<size_t, size_t>& config) {
 
     for (size_t i = 0; i < m_aux_fid.size(); ++i) {
         findex fid = m_aux_fid[i];
-        factor& f = m_scorer->get_factor(fid);
-        factor::value val_0(0.0, 0.0), val_1(1.0, 1.0);
+        interval& f = m_scorer->get_factor(fid);
+        interval::value val_0(0.0, 0.0), val_1(1.0, 1.0);
         index_config idx1(f.vars(), true);
         config_index idx2(f.vars(), true);
         vindex child = f.get_child();
@@ -133,7 +141,7 @@ void mmap2u::update_aux_factors(const std::map<size_t, size_t>& config) {
     if (m_verbose > 0) {
         std::cout << "[MMAP] Updated auxiliary factors:" << std::endl;
         for (size_t i = 0; i < m_aux_fid.size(); ++i) {
-            const factor& f = m_scorer->get_factor(m_aux_fid[i]);
+            const interval& f = m_scorer->get_factor(m_aux_fid[i]);
             std::cout << f << std::endl;
         }
     }
@@ -183,7 +191,7 @@ double mmap2u::score(const std::vector<size_t>& config) {
     m_scorer->run();
 
     vindex child = m_aux_vid.back();
-    factor bel = m_scorer->belief(child);
+    interval bel = m_scorer->belief(child);
     double lower = bel[1].first;
     double upper = bel[1].second;
     if (m_query_type == MERLIN_MMAP_MAXIMIN) {
@@ -272,144 +280,10 @@ void mmap2u::find_neighbors(const std::vector<size_t>& config,
         }
     }
 
-    // std::cout << "[DEBUG] config = ";
-    // std::copy(config.begin(), config.end(), std::ostream_iterator<size_t>(std::cout, " "));
-    // std::cout << std::endl;
-    // for (size_t j = 0; j < neighbors.size(); ++j) {
-    //     std::cout << "[DEBUG] neighb = ";
-    //     std::copy(neighbors[j].begin(), neighbors[j].end(), std::ostream_iterator<size_t>(std::cout, " "));
-    //     std::cout << std::endl;
-    // }
     assert(neighbors.size() > 0);
-
 }
 
-// Hill climbing
-void mmap2u::hill_climbing() {
-
-    // Init the cache
-    std::map<std::string, double> cache;
-
-    // Generate the initial configuration
-    std::vector<size_t> current_config = init_config();
-    double current_score = score(current_config);
-    std::cout << "[HC] Running Stochastic Hill Climbing for MMAP" << std::endl;
-    std::cout << "[HC] Initialization method: " << m_init_method << std::endl;
-    std::cout << "[HC] Initial solution: ";
-    std::copy(current_config.begin(), current_config.end(), 
-        std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl;
-    std::cout << "[HC] Initial score: " << current_score << std::endl;
-    std::cout << "[HC] Total iterations: " << m_iterations << std::endl;
-    std::cout << "[HC] Flips per iteration: " << m_max_flips << std::endl;
-    std::cout << "[HC] Random flip probability: " << m_flip_probability << std::endl;
-    std::cout << "[HC] Max cached configs: " << m_cache_size << std::endl;
-    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
-        std::cout << "[HC] Query type: maximax" << std::endl;
-    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-        std::cout << "[HC] Query type: maximin" << std::endl;
-    } else {
-        std::cout << "[HC] Query type: interval" << std::endl;
-    }
-
-    // Keep track of the best configuration
-    std::vector<size_t> best_config = current_config;
-    double best_score = current_score;
-    cache[make_key(best_config)] = best_score;
-
-    // Perform stochastic hill climbing for a number of iterations
-    size_t num_sols = 0;
-    for (size_t iter = 1; iter <= m_iterations; ++iter) {
-        size_t num_flips = 0;
-        size_t num_hits = 0;
-
-        // Start with a new random config
-        std::cout << " iteration #" << iter << " ... " << std::endl;
-        for (size_t flip = 1; flip <= m_max_flips; ++flip) {
-            num_flips++;
-            double p = randu();
-            if (p <= m_flip_probability) {
-                current_config = get_random_neighbor(best_config);
-                std::string ckey = make_key(current_config);
-                std::map<std::string, double>::iterator ci = cache.find(ckey);
-                if (ci != cache.end()) {
-                    num_hits++;
-                    current_score = ci->second;
-                } else {
-                    current_score = score(current_config);
-                    cache[ckey] = current_score;
-                }
-            } else {
-                double best_neighbor_score = -1.0;
-                std::vector<size_t> best_neighbor;            
-                std::vector<std::vector<size_t> > neighbors;
-                find_neighbors(current_config, neighbors);
-                for (size_t k = 0; k < neighbors.size(); ++k) {
-                    std::string nkey = make_key(neighbors[k]);
-                    double neighbor_score = -1.0;
-                    std::map<std::string, double>::iterator ci = cache.find(nkey);
-                    if (ci != cache.end()) {
-                        neighbor_score = ci->second;
-                    } else {
-                        neighbor_score = score(neighbors[k]);
-                        cache[nkey] = neighbor_score;
-                    }
-
-                    if (neighbor_score > best_neighbor_score) {
-                        best_neighbor_score = neighbor_score;
-                        best_neighbor = neighbors[k];
-                    }
-                }
-
-                if (best_neighbor_score > current_score) {
-                    current_config = best_neighbor;
-                    current_score = best_neighbor_score;
-                } else {
-                    current_config = get_random_neighbor(current_config);
-                    std::string ckey = make_key(current_config);
-                    std::map<std::string, double>::iterator ci = cache.find(ckey);
-                    if (ci != cache.end()) {
-                        current_score = ci->second;
-                    } else {
-                        current_score = score(current_config);
-                        cache[ckey] = current_score;
-                    }
-                }
-            }
-
-            // Check if current score is better
-            if (current_score > best_score) {
-                best_score = current_score;
-                best_config = current_config;
-
-                num_sols++;
-                std::cout << "   - found better solution [" << best_score << "] after " << num_flips << " flips: ";
-                std::copy(best_config.begin(), best_config.end(), 
-                    std::ostream_iterator<size_t>(std::cout, " "));
-                std::cout << std::endl;
-            } 
-
-            // Prune cache table if full
-            while (cache.size() > m_cache_size) {
-                cache.erase(cache.begin());
-            }
-        }
-        std::cout << "   - finished after " << num_flips << " flips, " << num_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    }
-
-    std::cout << "[HC] Best solution: ";
-    std::copy(best_config.begin(), best_config.end(), 
-        std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl << "[HC] Best score: " << best_score << std::endl;
-    std::cout << "[HC] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    std::cout << "[HC] Solutions found: " << num_sols << std::endl;
-
-    // Save best solution (and score)
-    m_best_config = best_config;
-    m_best_score = best_score;
-}
-
-// Hill climbing
+// Stochastic Hill Climbing (local search)
 void mmap2u::hill_climbing2() {
 
     // Init the cache
@@ -429,6 +303,9 @@ void mmap2u::hill_climbing2() {
     } else {
         std::cout << "[HC] Query type: interval" << std::endl;
     }
+    std::cout << "[HC] Query vars: ";
+    std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
 
     // Keep track of the overall best configuration
     std::vector<size_t> best_config, current_config;
@@ -602,134 +479,7 @@ std::string mmap2u::to_string(variable_set& vars, std::map<size_t, size_t>& conf
     return oss.str();
 }
 
-// Tabu search
-void mmap2u::taboo_search() {
-
-    // Init the cache
-    std::map<std::string, double> cache;
-
-    // Generate the initial configuration
-    std::vector<size_t> current_config = init_config();
-    double current_score = score(current_config);
-    std::cout << "[TS] Running Taboo Search for MMAP" << std::endl;
-    std::cout << "[TS] Initialization method: " << m_init_method << std::endl;
-    std::cout << "[TS] Initial solution: ";
-    std::copy(current_config.begin(), current_config.end(), 
-        std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl;
-    std::cout << "[TS] Initial score: " << current_score << std::endl;
-    std::cout << "[TS] Total iterations: " << m_iterations << std::endl;
-    std::cout << "[TS] Flips per iteration: " << m_max_flips << std::endl;
-    std::cout << "[TS] Taboo list size: " << m_taboo_size << std::endl;
-    std::cout << "[TS] Max cached configs: " << m_cache_size << std::endl;
-    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
-        std::cout << "[TS] Query type: maximax" << std::endl;
-    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-        std::cout << "[TS] Query type: maximin" << std::endl;
-    } else {
-        std::cout << "[TS] Query type: interval" << std::endl;
-    }
-
-    // Keep track of the best configuration
-    std::vector<size_t> best_config = current_config;
-    double best_score = current_score;
-    cache[make_key(best_config)] = best_score;
-
-    // Create the taboo list
-    std::map<std::string, bool> taboo_list; // keeps track of visited configs
-
-    // Perform taboo search for a number of iterations
-    size_t num_sols = 0;
-    for (size_t iter = 1; iter <= m_iterations; ++iter) {
-        size_t num_flips = 0;
-        size_t num_hits = 0;
-
-        std::cout << " iteration #" << iter << " ... " << std::endl;
-        for (size_t flip = 1; flip <= m_max_flips; ++flip) {
-            std::string key = make_key(current_config);
-            taboo_list[key] = true;
-            num_flips++;
-
-            // Find the best neighbor not in the taboo list
-            double best_neighbor_score = -1.0;
-            std::vector<size_t> best_neighbor;            
-            std::vector<std::vector<size_t> > neighbors;
-            find_neighbors(current_config, neighbors);
-            for (size_t k = 0; k < neighbors.size(); ++k) {
-                double neighbor_score = -1.0;
-                std::string nkey = make_key(neighbors[k]);
-                std::map<std::string, double>::iterator ci = cache.find(nkey);
-                if (ci != cache.end()) {
-                    num_hits++;
-                    neighbor_score = ci->second;
-                } else {
-                    neighbor_score = score(neighbors[k]);
-                    cache[nkey] = neighbor_score;
-                }
-
-                // Check the taboo list
-                std::map<std::string, bool>::iterator mi = taboo_list.find(nkey);
-                bool in_taboo = (mi != taboo_list.end());
-                if (!in_taboo && (neighbor_score > best_neighbor_score)) {
-                    best_neighbor_score = neighbor_score;
-                    best_neighbor = neighbors[k];
-                }
-            }
-
-            // If no such neighbor exists then select one at random
-            if (best_neighbor_score == -1.0) {
-                current_config = get_random_neighbor(current_config);
-                std::string ckey = make_key(current_config);
-                std::map<std::string, double>::iterator ci = cache.find(ckey);
-                if (ci != cache.end()) {
-                    current_score = ci->second;
-                } else {
-                    current_score = score(current_config);
-                    cache[ckey] = current_score;
-                }
-            } else { // Found the best neighbor not in taboo list
-                current_config = best_neighbor;
-                current_score = best_neighbor_score;
-            }
-
-            // Check if current score is better
-            if (current_score > best_score) {
-                best_score = current_score;
-                best_config = current_config;
-
-                num_sols++;
-                std::cout << "   - found better solution [" << best_score << "] after " << flip << " flips: ";
-                std::copy(best_config.begin(), best_config.end(), 
-                    std::ostream_iterator<size_t>(std::cout, " "));
-                std::cout << std::endl;
-            }
-
-            // Prune taboo list if full
-            if (taboo_list.size() > m_taboo_size) {
-                taboo_list.erase(taboo_list.begin());
-            }
-
-            // Prune cache table if full
-            while (cache.size() > m_cache_size) {
-                cache.erase(cache.begin());
-            }
-        }
-        std::cout << "   - finished after " << num_flips << " flips, " << num_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    }
-
-    std::cout << "[TS] Best solution: ";
-    std::copy(best_config.begin(), best_config.end(), 
-        std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl << "[TS] Best score: " << best_score << std::endl;
-    std::cout << "[TS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    std::cout << "[TS] Solutions found: " << num_sols << std::endl;
-
-    // Save best solution (and score)
-    m_best_config = best_config;
-    m_best_score = best_score;
-}
-
-// Tabu search
+// Tabu Search (local search)
 void mmap2u::taboo_search2() {
 
     // Init the cache
@@ -749,6 +499,9 @@ void mmap2u::taboo_search2() {
     } else {
         std::cout << "[TS] Query type: interval" << std::endl;
     }
+    std::cout << "[TS] Query vars: ";
+    std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
 
     // Keep track of the overall best configuration
     std::vector<size_t> best_config, current_config;
@@ -906,112 +659,7 @@ void mmap2u::taboo_search2() {
     m_best_score = best_score;
 }
 
-void mmap2u::simulated_annealing() {
-
-    // Init the cache
-    std::map<std::string, double> cache;
-
-    // Generate the initial configuration
-    std::vector<size_t> current_config = init_config();
-    double current_score = score(current_config);
-    std::cout << "[SA] Running Simulated Annealing for MMAP" << std::endl;
-    std::cout << "[SA] Initialization method: " << m_init_method << std::endl;
-    std::cout << "[SA] Initial solution: ";
-    std::copy(current_config.begin(), current_config.end(), 
-        std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl;
-    std::cout << "[SA] Initial score: " << current_score << std::endl;
-    std::cout << "[SA] Total iterations: " << m_iterations << std::endl;
-    std::cout << "[SA] Flips per iteration: " << m_max_flips << std::endl;
-    std::cout << "[SA] Max cached configs: " << m_cache_size << std::endl;
-    std::cout << "[SA] Initial temperature: " << m_init_temperature << std::endl;
-    std::cout << "[SA] Cooling factor (alpha): " << m_alpha << std::endl;
-    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
-        std::cout << "[SA] Query type: maximax" << std::endl;
-    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-        std::cout << "[SA] Query type: maximin" << std::endl;
-    } else {
-        std::cout << "[SA] Query type: interval" << std::endl;
-    }
-
-    // Keep track of the best configuration
-    std::vector<size_t> best_config = current_config;
-    double best_score = current_score;
-    double T = m_init_temperature;
-    cache[make_key(current_config)] = current_score;
-
-    // Perform taboo search for a number of iterations
-    size_t num_sols = 0;
-    for (size_t iter = 1; iter <= m_iterations; ++iter) {
-        size_t num_flips = 0;
-        size_t num_hits = 0;
-
-        std::cout << " iteration #" << iter << " (T=" << T << ") ... " << std::endl;
-        for (size_t flip = 1; flip <= m_max_flips; ++flip) {
-            num_flips++;
-            // Attempt to move to a neighbor (random)
-            std::vector<size_t> neighbor = get_random_neighbor(current_config);
-            std::string key = make_key(neighbor);
-            std::map<std::string, double>::iterator mi = cache.find(key);
-            double neighbor_score = -1.0;
-            if (mi != cache.end()) {
-                num_hits++;
-                neighbor_score = mi->second;
-            } else {
-                neighbor_score = score(neighbor);
-                cache[key] = neighbor_score;
-            }
-
-            double delta = neighbor_score - current_score;
-
-            if (delta > 0) { // found better solution
-                current_config = neighbor;
-                current_score = neighbor_score;
-
-            } else {
-                double p = randu();
-                double threshold = std::exp(delta/T);
-                if (p <= threshold) {
-                    current_config = neighbor;
-                    current_score = neighbor_score;
-                }
-            }
-
-            // Keep track of best config
-            if (current_score > best_score) {
-                best_config = current_config;
-                best_score = current_score;
-
-                num_sols++;
-                std::cout << "   - found better solution [" << best_score << "] after " << flip << " flips: ";
-                std::copy(best_config.begin(), best_config.end(), 
-                    std::ostream_iterator<size_t>(std::cout, " "));
-                std::cout << std::endl;
-            }
-
-            // Prune cache table if full
-            while (cache.size() > m_cache_size) {
-                cache.erase(cache.begin());
-            }
-        }
-
-        // Adjust temperature
-        T = m_alpha*T;
-        std::cout << "   - finished after " << num_flips << " flips, " << num_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    }
-
-    std::cout << "[SA] Best solution: ";
-    std::copy(best_config.begin(), best_config.end(), 
-        std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl << "[SA] Best score: " << best_score << std::endl;
-    std::cout << "[SA] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    std::cout << "[SA] Solutions found: " << num_sols << std::endl;
-
-    // Save best solution (and score)
-    m_best_config = best_config;
-    m_best_score = best_score;
-}
-
+// Simulated Annealing (local search)
 void mmap2u::simulated_annealing2() {
 
     // Init the cache
@@ -1032,6 +680,9 @@ void mmap2u::simulated_annealing2() {
     } else {
         std::cout << "[SA] Query type: interval" << std::endl;
     }
+    std::cout << "[SA] Query vars: ";
+    std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
 
     std::vector<size_t> current_config = init_config();
     double current_score = score(current_config);
@@ -1134,6 +785,143 @@ void mmap2u::simulated_annealing2() {
     m_best_score = best_score;
 }
 
+// Guided Local Search
+void mmap2u::guided_local_search2() {
+
+}
+
+// Variable Elimination for MMAP (exact)
+void mmap2u::variable_elimination2() {
+
+    // Initialize the solver
+    std::cout << "[CVE] Running Credal Variable Elimination for MMAP" << std::endl;
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        std::cout << "[CVE] Query type: maximax" << std::endl;
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        std::cout << "[CVE] Query type: maximin" << std::endl;
+    } else {
+        std::cout << "[CVE] Interval query is not supported" << std::endl;
+        std::cout << "[CVE] Stop" << std::endl;
+        return;
+    }
+    std::cout << "[CVE] Query vars: ";
+    std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+
+    // Number of variables
+    size_t num_vars = nvar();
+
+    // Create constrained minfill ordering
+    std::vector<size_t> elim_order;
+    elim_order = constrained_order2(m_query);
+    std::cout << "[CVE] Elimination order: ";
+    std::copy(elim_order.begin(), elim_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[CVE] Induced width: " << m_width << std::endl;
+
+    // Initialize the variable types
+    std::vector<bool> var_types(num_vars, false);
+    for (size_t i = 0; i < m_query.size(); ++i) {
+        var_types[m_query[i]] = true; // mark as MAP variable
+    }
+
+    // Initialize the buckets
+    std::vector<bool> used(num_vars, false);
+    std::vector<bucket> buckets(num_vars);
+    for (size_t i = 0; i < elim_order.size(); ++i) {
+        size_t v = elim_order[i];
+        buckets[i].set_variable(v);
+        for (size_t j = 0; j < m_factors.size(); ++j) {
+            interval& f = m_factors[j];
+            int ch = f.get_child();
+            if (used[ch] == true) {
+                continue;
+            } else {
+                // check if the current interval factor contains the bucket var
+                if (f.vars().contains(var(v))) {
+                    used[ch] = true;
+                    buckets[i].add_potential(f.to_potential());
+                }
+            }
+        }
+    }
+
+    if (m_verbose > 0) {
+        std::cout << "[DEBUG] Bucket structure:" << std::endl;
+        for (size_t i = 0; i < buckets.size(); ++ i) {
+            std::cout << "Bucket [" << buckets[i].get_variable() << "]" << std::endl;
+            std::vector<potential>& pots = buckets[i].potentials(); 
+            for (size_t j = 0; j < pots.size(); ++j) {
+                std::cout << pots[j] << std::endl;
+            } 
+        }
+    }
+
+    // Eliminate the variables
+    std::vector<potential> scalars;
+    for (size_t i = 0; i < num_vars; ++i) {
+        size_t v = elim_order[i];
+        variable vx = var(v);
+        std::string vtype = (var_types[v] ? "MAX" : "SUM");
+        std::cout << "[CVE] Eliminating " << vtype << " variable: " << v << std::endl;
+
+        // Combine the potentials in the bucket
+        potential comb(1.0);
+        std::vector<potential>& pots = buckets[i].potentials();
+        for (size_t j = 0; j < pots.size(); ++j) {
+            comb.multiply(pots[j]);
+        }
+
+        // Eliminate the bucket variable
+        potential result = comb;
+        if (var_types[v] == true) { // MAX variable
+            result.max(vx);
+        } else {
+            result.sum(vx);
+        }
+
+        // Remove dominated vertices
+        if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+            result.maximize();
+        } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+            result.minimize();
+        }
+
+        // Place new potential in the appropriate bucket
+        if (result.isscalar()) {
+            scalars.push_back(result);
+        } else {
+            // Find the closest bucket that contains a variable in the potential's scope
+            for (size_t j = i + 1; j < num_vars; ++j) {
+                int y = buckets[j].get_variable();
+                variable vy = var(y);
+                if (result.vars().contains(vy)) {
+                    buckets[j].add_potential(result);
+                    break;
+                }
+            }
+        }
+    }
+
+    // After elimination, combine all scalars
+    potential r;
+    for (size_t i = 0; i < scalars.size(); ++i) {
+        r.multiply(scalars[i]);
+    }
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        r.maximize();
+    } else {
+        r.minimize();
+    }
+
+    assert(r.p().size() == 1);
+    m_best_score = r.p()[0][0];
+
+    std::cout << "[CVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[CVE] Best cost: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+
+}
+
 // Run solver
 void mmap2u::run() {
 
@@ -1150,6 +938,8 @@ void mmap2u::run() {
         taboo_search2();
     } else if (m_search_method.compare("sa") == 0) { // simulated annealing
         simulated_annealing2();
+    } else if (m_search_method.compare("cve") == 0) { // credal variable elimination 
+        variable_elimination2();
     }
 }
 

@@ -48,14 +48,14 @@ void bn2cn::run() {
 	// Convert the factor values into intervals
 	std::cout << "[BN2CN] Converting the factor values to intervals ..." << std::endl;
 	for (size_t i = 0; i < m_factors.size(); ++i) {
-		factor& fn = m_factors[i];
+		interval& fn = m_factors[i];
 		for (size_t j = 0; j < fn.numel(); ++j) {
-			factor::value val = fn[j];
+			interval::value val = fn[j];
 			double a = val.first;
 			double b = val.second;
 			a = std::max(0.0, a - m_epsilon);
 			b = std::min(1.0, b + m_epsilon);
-			fn[j] = factor::value(a, b);
+			fn[j] = interval::value(a, b);
 		}
 	}
 
@@ -111,7 +111,7 @@ void bn2cn::write_solution(std::ostream& os, int output_format) {
 
 	// Write the factor tables
 	for (size_t i = 0; i < m; ++i) {
-		const factor& fn = m_factors[i];
+		const interval& fn = m_factors[i];
 		os << fn.numel() << std::endl;
 		std::vector<variable> orig_scope;
 		for (variable_set::const_iterator vi = fn.vars().begin();
@@ -121,7 +121,7 @@ void bn2cn::write_solution(std::ostream& os, int output_format) {
 		convert_index cv(scopes[i], false, orig_scope, true);
 		for (size_t j = 0; j < fn.numel(); ++j) {
 			size_t k = cv.convert(j);
-			factor::value val = fn.get(k);
+			interval::value val = fn.get(k);
 			os << " " << std::setiosflags(std::ios::fixed)
 				<< std::setprecision(8) << val.first << " " << val.second << std::endl;
 		}

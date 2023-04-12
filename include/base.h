@@ -84,10 +84,11 @@
 #define MERLIN_ALGO_SV2U        1002        ///< Structural Variational 2U
 #define MERLIN_ALGO_CONVERT     1003        ///< Convert to interval credal net
 #define MERLIN_ALGO_GENERATOR   1004        ///< Random problem generator
-#define MERLIN_ALGO_MMAP_HILL   1005        ///< Stochastic Hill-climbing for MMAP
-#define MERLIN_ALGO_MMAP_TABOO  1006        ///< Taboo search for MMAP
-#define MERLIN_ALGO_MMAP_SA     1007        ///< Simulated annealing for MMAP
-#define MERLIN_ALGO_MMAP_GLS    1008        ///< Guided local search for MMAP
+#define MERLIN_ALGO_MMAP_HILL   1005        ///< Stochastic Hill-Climbing for MMAP
+#define MERLIN_ALGO_MMAP_TABOO  1006        ///< Taboo Search for MMAP
+#define MERLIN_ALGO_MMAP_SA     1007        ///< Simulated Annealing for MMAP
+#define MERLIN_ALGO_MMAP_GLS    1008        ///< Guided Local Search for MMAP
+#define MERLIN_ALGO_MMAP_CVE    1009        ///< Credal Variable Elimination for MMAP
 
 ///
 /// Probabilistic inference tasks.

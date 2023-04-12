@@ -162,6 +162,8 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MMAP_TABOO;
 			} else if (alg.compare("sa") == 0) {
 				opt->algorithm = MERLIN_ALGO_MMAP_SA;
+			} else if (alg.compare("cve") == 0) {
+				opt->algorithm = MERLIN_ALGO_MMAP_CVE;
 			} else if (alg.compare("bn2cn") == 0) {
 				opt->algorithm = MERLIN_ALGO_CONVERT;
 			} else if (alg.compare("generator") == 0) {
