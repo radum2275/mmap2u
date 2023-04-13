@@ -880,11 +880,21 @@ void mmap2u::variable_elimination2() {
             result.sum(vx);
         }
 
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Result before pruning:" << std::endl;
+            std::cout << result << std::endl;
+        }
+
         // Remove dominated vertices
         if (m_query_type == MERLIN_MMAP_MAXIMAX) {
             result.maximize();
         } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
             result.minimize();
+        }
+
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Result after pruning:" << std::endl;
+            std::cout << result << std::endl;
         }
 
         // Place new potential in the appropriate bucket
@@ -904,22 +914,77 @@ void mmap2u::variable_elimination2() {
     }
 
     // After elimination, combine all scalars
-    potential r;
+    potential r(1.0);
     for (size_t i = 0; i < scalars.size(); ++i) {
         r.multiply(scalars[i]);
     }
+    
+    // Prune dominated scalars
     if (m_query_type == MERLIN_MMAP_MAXIMAX) {
         r.maximize();
-    } else {
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
         r.minimize();
     }
 
-    assert(r.p().size() == 1);
+    // Check for singleton
+    if (r.p().size() > 1) {
+        std::cout << "[CVE] WARNING: more than one final scalars detected: " << r.p().size() << std::endl; 
+    }
+
+    // Get the best score
     m_best_score = r.p()[0][0];
 
-    std::cout << "[CVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    std::cout << "[CVE] Best cost: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    // Compute the MAP assignment
+    std::map<size_t, size_t> config;
+    for (size_t i = num_vars - 1; i >= 0; --i) {
+        size_t v = elim_order[i];
+        if (var_types[v] == false) {
+            break; // stop at the first SUM variable
+        }
 
+        std::cout << "[CVE] Processing MAX variable: " << v << std::endl;
+        variable vx = var(v);
+        potential result(1.0);
+        std::vector<potential>& pots = buckets[i].potentials();
+        for (size_t j = 0; j < pots.size(); ++j) {
+            potential temp = pots[j];
+            temp.substitute(config);
+            result.multiply(temp);
+        }
+
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Combined potential (before pruning):" << std::endl;
+            std::cout << result << std::endl;
+        }
+
+        if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+            result.maximize();
+        } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+            result.minimize();
+        }
+
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Combined potential (after pruning):" << std::endl;
+            std::cout << result << std::endl;
+
+        }
+
+        size_t val = result.argmax();
+        config[v] = val;
+        std::cout << "[CVE] Argmax for variable " << v << " is " << val << std::endl;
+    }
+
+    // Assemble the solution
+    m_best_config.resize(m_query.size());
+    for (size_t i = 0; i < m_query.size(); ++i) {
+        m_best_config[i] = config[m_query[i]];
+    }
+
+    std::cout << "[CVE] Best solution: ";
+    std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[CVE] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[CVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
 }
 
 // Run solver

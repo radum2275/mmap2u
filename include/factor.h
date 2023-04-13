@@ -1184,6 +1184,34 @@ public:
 	}
 
 	///
+	/// \brief Condition on an variable configuration
+	///
+	/// \param config the variable configuration
+	/// \return a copy of the factor resulting from the conditioning operation.
+	///
+	factor substitute(const std::map<size_t, size_t>& config) const {
+		variable_set v_rem;
+		for (variable_set::const_iterator it = vars().begin();
+				it != vars().end(); ++it) {
+			int v = it->label();
+			if (config.find(v) != config.end()) {
+				v_rem |= (*it);
+			}
+		}
+
+		factor F = *this;
+		for (variable_set::const_iterator it = v_rem.begin();
+				it != v_rem.end(); ++it) {
+			size_t v = it->label();			
+			variable_set vs(*it);
+			size_t val = config.at(v);
+			F = F.condition(vs, val);
+		}
+
+		return F;
+	}
+
+	///
 	/// \brief Condition on a single variable.
 	///
 	/// \param v_rem 	The variable to be conditioned on

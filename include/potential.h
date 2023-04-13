@@ -230,7 +230,7 @@ public:
 
             if (!found_maximal) {
                 bool found = false;
-                for (size_t j = 0; j <= cleaned.size(); ++j) {
+                for (size_t j = 0; j < cleaned.size(); ++j) {
                     if (p_[i] == cleaned[j]) {
                         found = true;
                     }
@@ -262,7 +262,7 @@ public:
 
             if (!found_minimal) {
                 bool found = false;
-                for (size_t j = 0; j <= cleaned.size(); ++j) {
+                for (size_t j = 0; j < cleaned.size(); ++j) {
                     if (p_[i] == cleaned[j]) {
                         found = true;
                     }
@@ -324,6 +324,36 @@ public:
 
         // Replace with the new combined factors
         p_ = temp;
+    }
+
+    /// @brief Project the potential on a variable configuration (in place)
+    /// @param config current variable assignment
+    void substitute(const std::map<size_t, size_t>& config) {
+        std::vector<factor> temp;
+        v_.clear();
+		for (size_t i = 0; i < p_.size(); ++i) {
+            factor f = p_[i].substitute(config);
+            temp.push_back(f);
+			if (v_.size() == 0) {
+				v_ = f.vars(); // update the potential's scope
+			}
+        }
+
+        // Replace with the new conditioned factors
+        p_ = temp;
+    }
+
+    /// @brief Compute the argmax of a single variable potential
+    /// @return the value that maximizes the potential
+    size_t argmax() {
+		// Find the most frequent value that maximizes the potential
+		factor f(v_, 0.0);
+		for (size_t i = 0; i < p_.size(); ++i) {
+			size_t val = p_[i].argmax(); // assume factor's scope has one variable
+			f[val] = f[val] + 1;
+		}
+		std::cout << "[ARGMAX] " << f << std::endl;
+		return f.argmax();
     }
 
 	// Boolean checks on potential properties:
