@@ -28,6 +28,7 @@
 
 #include "credal_net.h"
 #include "algorithm.h"
+#include "bucket.h"
 
 namespace merlin {
 
@@ -44,22 +45,6 @@ public:
 	typedef credal_net::findex findex;        ///< Factor index
 	typedef credal_net::vindex vindex;        ///< Variable index
 	typedef credal_net::flist flist;          ///< Collection of factor indices
-
-	class message { // directed edge message Ui -> X
-	public:
-		variable parent; // parent (Ui)
-		variable child; // child (X)
-		interval pi; // message from parent to child: pi(Ui)
-		interval lambda; // message from child to parent: scalar
-		bool evidence; // dummy message for evidence nodes
-		message(variable p, variable c) {
-			parent = p;
-			child = c;
-			pi = interval(interval::value(1.0, 1.0)); // scalar (only p=1)
-			lambda = interval(interval::value(1.0, 1.0)); // scalar
-			evidence = false;
-		}
-	};
 
 public:
 
@@ -108,7 +93,7 @@ public:
 	void write_solution(std::ostream& out, int output_format);
 
 	///
-	/// \brief Run the Loopy 2U algorithm.
+	/// \brief Run the CVE2U algorithm for P(e).
 	///
 	void run();
 
@@ -164,6 +149,14 @@ public:
 	/// \brief Reset the internal state of the solver
 	///
 	void reset();
+	void reset(const std::map<size_t, size_t>& config);
+
+	///
+	/// @brief Compute the probability of evidence
+	/// @param config a variable assignment
+	/// @return lower and upper bounds on the probability of evidence
+	///
+	std::pair<double, double> eval(const std::map<size_t, size_t>& config);
 
 	///
 	/// \brief Set the evidence variables
@@ -186,35 +179,21 @@ public:
 	/// \brief Update the belief of a variable
 	///
 	void upate_belief(variable x);
-	
-	///
-	/// \brief Compute the lambda(x) message
-	///
-	/// \param x it the current variable
-	///	
-	void lambda(variable x);
-	
+		
 
-private:
+protected:
 
-	void test();
+	double ve(bool upper = true);
 
 protected:
 	// Members:
 
 	variable_order_t m_order;						///< Variable order
-	std::vector<interval> m_beliefs; 					///< Marginals
+	std::vector<interval> m_beliefs; 				///< Marginals
 	std::map<size_t, size_t> m_evidence;			///< Evidence
-	size_t m_iterations;							///< Number of iterations
-	double m_threshold;								///< Convergence threshold (default=1e-06)
-	std::vector<size_t> m_schedule;					///< Propagation schedule
+	std::vector<bucket> m_buckets;					///< Bucket structure
+	std::vector<size_t> m_positions;				///< Positions of variables in ordering
 	size_t m_verbose;								///< Verbosity level
-	std::vector<interval> m_pi;						///< Pi's for each variable x 
-	std::vector<interval> m_lambda;					///< Lambda's for each variable x
-	std::vector<cve2u::message> m_messages;			///< Edge messages	
-	std::vector<std::vector<size_t> > m_incoming;	///< Parents of a node (incoming)
-	std::vector<std::vector<size_t> > m_outgoing;	///< Children of a node (outgoing)
-	interval::value m_delta;							///< Average change in messages
 	size_t m_seed;									///< Random number generator seed
 };
 

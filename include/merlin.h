@@ -46,6 +46,7 @@ protected:
 
 	size_t m_task;						///< Inference task (PR, MAR, MAP, MMAP).
 	size_t m_algorithm;					///< Inference algorithm
+	size_t m_scorer;					///< Scorer algorithm for MMAP
 	size_t m_ibound;					///< Parameter: i-bound
 	size_t m_iterations;				///< Parameter: number of iterations
 	size_t m_samples;					///< Parameter: number of samples
@@ -57,6 +58,7 @@ protected:
 	int m_verbose;						///< Verbosity level (default: 0)
 	int m_outputFormat;					///< Output format (UAI, JSON)
 	double m_threshold;					///< Threshold for early convergence
+	double m_time_limit;				///< Time limit in seconds (default -1)
 	double m_epsilon;					///< Epsilon value for conversion
 	size_t m_seed;						///< Random number generator seed
 	double m_flip_probability;			///< Random flip probability (MMAP)
@@ -114,6 +116,20 @@ public:
 	/// \param alg 	The code associated with the algorithm.
 	///
 	void set_algorithm(size_t alg);
+
+	///
+	/// @brief Set the scorer algorithm (for MMAP)
+	/// @param s the scoring method
+	///
+	void set_scorer(size_t s);
+
+	///
+	/// @brief Set the time limit
+	/// @param t the number of seconds
+	///
+	void set_time_limit(double t) {
+		m_time_limit = t;
+	}
 
 	///
 	/// \brief Set the inference task.

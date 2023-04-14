@@ -46,6 +46,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("query-file,q", po::value<std::string>(), "path to query file file (optional)")
 			("output-file,o", po::value<std::string>(), "path to output file (optional)")
 			("algorithm,a", po::value<std::string>(), "inference algorithm (required): bte, cte, wmb, ijgp, lbp, jglp, gibbs")
+			("scorer,S", po::value<std::string>(), "scorer (required): l2u or cve2u")
 			("task,t", po::value<std::string>(), "inference task (use PR, MAR, MAP, MMAP)")
 			("time-limit,l", po::value<int>(), "time limit in seconds")
 			("seed,s", po::value<size_t>(), "seed for the random number generator")
@@ -156,6 +157,8 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_IPE2U;
 			} else if (alg.compare("sv2u") == 0) {
 				opt->algorithm = MERLIN_ALGO_SV2U;
+			} else if (alg.compare("cve2u") == 0) {
+				opt->algorithm = MERLIN_ALGO_CVE2U;	
 			} else if (alg.compare("hc") == 0) {
 				opt->algorithm = MERLIN_ALGO_MMAP_HILL;
 			} else if (alg.compare("ts") == 0) {
@@ -164,6 +167,8 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MMAP_SA;
 			} else if (alg.compare("cve") == 0) {
 				opt->algorithm = MERLIN_ALGO_MMAP_CVE;
+			} else if (alg.compare("naive") == 0) {
+				opt->algorithm = MERLIN_ALGO_MMAP_NAIVE;
 			} else if (alg.compare("bn2cn") == 0) {
 				opt->algorithm = MERLIN_ALGO_CONVERT;
 			} else if (alg.compare("generator") == 0) {
@@ -171,6 +176,19 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			} else {
 				std::string err_msg("Algorithm ");
 				err_msg += alg + " is not supported.";
+				throw std::runtime_error(err_msg);
+			}
+		}
+
+		if (vm.count("scorer")) {
+			std::string scorer = vm["scorer"].as<std::string>();
+			if (scorer.compare("l2u") == 0) {
+				opt->scorer = MERLIN_ALGO_L2U;
+			} else if (scorer.compare("cve2u") == 0) {
+				opt->scorer = MERLIN_ALGO_CVE2U;	
+			} else {
+				std::string err_msg("Scorer ");
+				err_msg += scorer + " is not supported.";
 				throw std::runtime_error(err_msg);
 			}
 		}

@@ -30,6 +30,7 @@
 #include "algorithm.h"
 #include "loopy2u.h"
 #include "potential.h"
+#include "bucket.h"
 
 namespace merlin {
 
@@ -48,28 +49,6 @@ public:
 	typedef credal_net::flist flist;          ///< Collection of factor indices
 
 public:
-
-	class bucket {
-	public:
-		bucket() : m_variable(-1) {};
-		~bucket() {};
-		void set_variable(int v) {
-			m_variable = v;
-		}
-		int get_variable() {
-			return m_variable;
-		}
-		void add_potential(const potential& p) {
-			m_potentials.push_back(p);
-		}
-		std::vector<potential>& potentials() {
-			return m_potentials;
-		}
-
-	protected:
-		int m_variable;
-		std::vector<potential> m_potentials;
-	};
 
 	///
 	/// \brief Default constructor.
@@ -126,7 +105,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , StopIter,FlipProb,InitMethod,InitTemp,Alpha,MaxFlips,SearchMethod,Threshold,Verbose,Seed,TabooSize,CacheSize,QueryType );
+	MER_ENUM( Property , StopIter,FlipProb,InitMethod,InitTemp,Alpha,MaxFlips,SearchMethod,Threshold,Verbose,Seed,TabooSize,CacheSize,QueryType,Scorer,TimeLimit );
 
 
 	// Setting properties (directly or through property string):
@@ -151,7 +130,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("StopIter=10,FlipProb=0.2,InitTemp=100,Alpha=0.2,MaxFlips=100,InitMethod=rand,SearchMethod=hc,Threshold=1e-06,Verbose=1,Seed=0,TabooSize=100,CacheSize=100,QueryType=maximin");
+			set_properties("StopIter=10,FlipProb=0.2,InitTemp=100,Alpha=0.2,MaxFlips=100,InitMethod=rand,SearchMethod=hc,Threshold=1e-06,Verbose=1,Seed=0,TabooSize=100,CacheSize=100,QueryType=maximin,Scorer=l2u,TimeLimit=-1");
 			return;
 		}
 		m_verbose = 1;
@@ -204,6 +183,12 @@ public:
 					m_query_type = MERLIN_MMAP_INTERVAL;
 				}
 				break;
+			case Property::Scorer:
+				m_scorer_method = asgn[1]; // l2u or cve2u
+				break;
+			case Property::TimeLimit:
+				m_time_limit = atof(asgn[1].c_str());
+				break;
 			default:
 				break;
 			}
@@ -241,7 +226,9 @@ protected:
 	///
 	void simulated_annealing2();
 	
+	///
 	/// @brief Guided Local Search (local search)
+	///
 	void guided_local_search2();
 
 	///
@@ -249,6 +236,11 @@ protected:
 	///
 	void variable_elimination2();
 
+	///
+	/// @brief Brute-force Search (exact)
+	///
+	void brute_force2();
+	
 	///
 	/// \brief Calculate the score of a MAP configuration
 	///
@@ -308,6 +300,7 @@ protected:
 	double m_flip_probability;						///< Random flip probability
 	std::string m_init_method;						///< Initialization method (rand, mpe, mle)
 	std::string m_search_method;					///< Search method (hill, taboo, aneal)
+	std::string m_scorer_method;					///< Scorer method (l2u or cve2u)
 	std::vector<size_t> m_schedule;					///< Propagation schedule
 	size_t m_verbose;								///< Verbosity level
 	size_t m_seed;									///< Random number generator seed
@@ -319,6 +312,7 @@ protected:
 	size_t m_taboo_size;							///< Max size of the taboo list
 	size_t m_cache_size;							///< Max size of the cache table
 	size_t m_query_type;							///< MMAP type (maximin, maximax, interval)
+	double m_time_limit;							///< Time limit (default -1)
 	loopy2u* m_scorer;								///< Scorer
 	std::vector<findex> m_aux_fid;					///< List of auxiliary factor indices
 	std::vector<vindex> m_aux_vid;					///< List of auxiliary variable indices

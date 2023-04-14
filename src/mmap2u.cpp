@@ -22,6 +22,7 @@
 
 #include "mmap2u.h"
 #include "loopy2u.h"
+#include "cve2u.h"
 
 namespace merlin {
 
@@ -38,6 +39,7 @@ void mmap2u::init() {
         || (m_search_method.compare("sa") == 0)
         || (m_search_method.compare("gls") == 0) ) {
 
+        std::cout << "[MMAP] Scorer: " << m_scorer_method << std::endl;
         std::cout << "[MMAP] Initialize scorer ..." << std::endl;
         init_scorer();
     }
@@ -987,6 +989,110 @@ void mmap2u::variable_elimination2() {
     std::cout << "[CVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
 }
 
+/// Brute force search with exact CVE based evaluation (exact)
+void mmap2u::brute_force2() {
+
+    // Prologue
+    std::cout << "[NAIVE] Running exact brute-force for MMAP" << std::endl;
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        std::cout << "[NAIVE] Query type: maximax" << std::endl;
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        std::cout << "[NAIVE] Query type: maximin" << std::endl;
+    } else {
+        std::cout << "[NAIVE] Query type: interval" << std::endl;
+    }
+    std::cout << "[NAIVE] Query vars: ";
+    std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+
+    // Initialize the solver
+    size_t num_vars = m_query.size();
+    size_t num_sols = 0;
+    double best_score = -1;
+    std::vector<int> best_config;
+
+    // Initialize the exact scorer (cve2u)
+    std::ostringstream oss;
+    oss << "Verbose=0,Seed=" << m_seed;
+    std::vector<interval> fs = get_factors();
+    merlin::cve2u exact_scorer(fs);
+    exact_scorer.set_properties(oss.str());
+    exact_scorer.init();
+
+    // Enumerate all possible assignments of the MAP variables
+    std::vector<int> values(num_vars, 0);
+    values[num_vars - 1] = -1;
+    int i;
+    bool timeout = false;
+    std::cout << "[NAIVE] Start search ...:" << std::endl;
+    while (true) {
+
+        // Enumerate "parent" variables.
+        for (i = num_vars - 1; i >= 0; --i) {
+            if (values[i] < 1) break;
+            values[i] = 0;
+        }
+
+        if (i < 0) break;	// done;
+        ++values[i];
+
+        // NOW: all guery variables have a specific value combination.
+        std::map<size_t, size_t> config;
+        for (size_t j = 0; j < m_query.size(); ++j) {
+            config[m_query[j]] = values[j];
+        }
+
+        // Evaluate the current MAP assignment
+        std::pair<double, double> result = exact_scorer.eval(config);
+        if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+            if (result.second > best_score) {
+                best_score = result.second;
+                best_config = values;
+                num_sols++;
+
+                std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")]: ";
+                std::copy(best_config.begin(), best_config.end(), std::ostream_iterator<int>(std::cout, " "));
+                std::cout << std::endl;
+            }
+        } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+            if (result.first > best_score) {
+                best_score = result.first;
+                best_config = values;
+                num_sols++;
+
+                std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")]: ";
+                std::copy(best_config.begin(), best_config.end(), std::ostream_iterator<int>(std::cout, " "));
+                std::cout << std::endl;
+            }
+        } else {
+            // do nothing for now, but later collect the non-dominated ones
+        }
+
+        // Check for timeout
+        double elapsed = (timeSystem() - m_start_time);
+        if (m_time_limit > 0 && elapsed > m_time_limit) {
+            std::cout << "  - TIMELIMT" << std::endl;
+            timeout = true;
+        }
+    }
+
+    // Assemble the solution
+    m_best_score = best_score;
+    m_best_config.resize(num_vars);
+    for (size_t i = 0; i < best_config.size(); ++i) {
+        m_best_config[i] = best_config[i];
+    }
+
+    std::cout << "[NAIVE] Finished search" << std::endl;
+    std::cout << "[NAIVE] Best solution: ";
+    std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[NAIVE] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[NAIVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[NAIVE] Solutions found: " << num_sols << std::endl;
+    std::cout << "[NAIVE] Timeout: " << (timeout ? "yes" : "no") << std::endl;
+}
+
 // Run solver
 void mmap2u::run() {
 
@@ -1005,6 +1111,8 @@ void mmap2u::run() {
         simulated_annealing2();
     } else if (m_search_method.compare("cve") == 0) { // credal variable elimination 
         variable_elimination2();
+    } else if (m_search_method.compare("naive") == 0) { // brute force search
+        brute_force2();
     }
 }
 

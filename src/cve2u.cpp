@@ -24,29 +24,6 @@
 
 namespace merlin {
 
-void cve2u::test() {
-	size_t n = num_nodes();
-	graph g(n); // create the undirected graph
-	my_set<directed_edge>::const_iterator ei = m_edges.begin();
-	for (; ei != m_edges.end(); ei++) {
-		g.add_edge(ei->first, ei->second);
-	}
-
-	// Check if graph has cycles
-	if (g.is_cyclic()) {
-		std::cout << "[DEBUG] Undirected graph is cyclic" << std::endl;
-		for (int i = 1; i <= 4; ++i) {
-			my_set<directed_edge> cutset = find_loop_cutset();
-			std::cout << "[DEBUG] Loop cutset size = " << cutset.size() << std::endl;
-			for (my_set<directed_edge>::const_iterator ei = cutset.begin(); ei != cutset.end(); ++ei) {
-				std::cout << "[DEBUG] edge (" << ei->first << "," << ei->second << ")" << std::endl;
-			}
-		}
-	} else {
-		std::cout << "[DEBUG] Undirected graph is not cyclic (polytree)" << std::endl;
-	}
-}
-
 // Initialize CVE2U
 void cve2u::init() {
 
@@ -54,52 +31,41 @@ void cve2u::init() {
 	if (m_verbose > 0) {
 		std::cout << "[CVE2U] Begin initialization ..." << std::endl;
 		std::cout << "[CVE2U] Random generator seed: " << m_seed << std::endl;
-		std::cout << "[CVE2U] Find minfill elimination order" << std::endl;
+		std::cout << "[CVE2U] Find minfill elimination order ..." << std::endl;
 	}
+	
 	rand_seed(m_seed); // set the random number generator seed
 	if (m_order.size() == 0) { // if we need to construct an elimination ordering
 		m_order = order();
 	}
 
 	// Find minfill elimination order
-	if (m_verbose > 0) {
-		std::cout << "[CVE2U] Minfill order: ";
-		std::copy(m_order.begin(), m_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
-		std::cout << std::endl;
+	std::cout << "[CVE2U] Minfill order: ";
+	std::copy(m_order.begin(), m_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
+	std::cout << std::endl;
+
+	// Set the variable positions in the ordering
+	m_positions.resize(m_order.size());
+	for (size_t i = 0; i < m_order.size(); ++i) {
+		size_t var = m_order[i];
+		m_positions[var] = i;
 	}
 
 	// Calculate the induced width of the elimination ordering
 	size_t wstar = induced_width(m_order);
-	if (m_verbose > 0) {
-		std::cout << "[CVE2U] Induced width: " << wstar << std::endl;
-	}
+	std::cout << "[CVE2U] Induced width: " << wstar << std::endl;
 
 	// Init evidence
 	if (m_evidence.empty() == false) {
-		size_t d = nvar();
-		if (m_verbose > 0) {
-			std::cout << "[CVE2U] Evidence:";
-		}
-
+		std::cout << "[CVE2U] Evidence:";
 		std::map<size_t, size_t>::iterator ei = m_evidence.begin();
 		for (; ei != m_evidence.end(); ++ei) {
 			size_t x = ei->first, xi = ei->second;
 			std::cout << " x" << x << "=" << xi;
-			variable p = var(x);
-			variable dummy(d++, 1);
-			message m(p, dummy);
-			m.lambda = (xi == 0) ? interval::value(0, 0) : interval::value(infty(), infty());
-			m.evidence = true;
-
-			m_messages.push_back(m);
-			size_t mi = m_messages.size() - 1; // get the index of the last message
-			m_outgoing[x].push_back(mi);
 		}
 		std::cout << std::endl;
 	} else {
-		if (m_verbose > 0) {
-			std::cout << "[CVE2U] Evidence: none" << std::endl;
-		}
+		std::cout << "[CVE2U] Evidence: none" << std::endl;
 	}
 
 	// Calculate total initialization time
@@ -111,71 +77,215 @@ void cve2u::init() {
 
 // Reset the internal state of the solver
 void cve2u::reset() {
-	if (m_verbose > 0) {
-		std::cout << "[CVE] Reset solver ..." << std::endl;
-	}
+	
+	// Clear the buckets
+	m_buckets.clear();
 
-	m_incoming.clear();
-	m_outgoing.clear();
-	m_messages.clear();
-	m_schedule.clear();
-	m_pi.clear();
-	m_lambda.clear();
-	m_beliefs.clear();
+	// Initialize the buckets
+	size_t num_vars = nvar();
+	m_buckets.resize(num_vars);
+    std::vector<bool> used(num_vars, false);
+    for (size_t i = 0; i < m_order.size(); ++i) {
+        size_t v = m_order[i];
+        m_buckets[i].set_variable(v);
+        for (size_t j = 0; j < m_factors.size(); ++j) {
+            interval& f = m_factors[j];
+            int ch = f.get_child();
+            if (used[ch] == true) {
+                continue;
+            } else {
+                // check if the current interval factor contains the bucket var
+                if (f.vars().contains(var(v))) {
+                    used[ch] = true;
+                    m_buckets[i].add_potential(f.to_potential());
+                }
+            }
+        }
+
+		// Add evidence potential (if any)
+		if (m_evidence.find(v) != m_evidence.end()) {
+			size_t val = m_evidence[v];
+			potential pot;
+			factor f(variable_set(var(v)), 0.0);
+			f[val] = 1.0;
+			pot.add_p(f);
+			m_buckets[i].add_potential(pot);
+		}
+    }
 }
 
-// Update the marginals (after belief propagation)
-void cve2u::update_beliefs() {
-	assert(m_beliefs.empty());
-	m_beliefs.resize(nvar());
-	for (size_t x = 0; x < nvar(); ++x) {
-		variable_set vs(var(x));
-		interval bel(vs);
-		try { // evidence variable
-			size_t k = m_evidence.at(x);
-			bel[k] = interval::value(1.0, 1.0);
-			bel[1 - k] = interval::value(0.0, 0.0);
-		} catch(std::out_of_range e) { // non-evidence variable
-			interval::value Lx = m_lambda[x].get(0);
-			interval::value Px = m_pi[x].get(0);
-			double lb = 1.0 / (1.0 + (1.0 / Px.first - 1.0) * (1.0 / Lx.first));
-			double ub = 1.0 / (1.0 + (1.0 / Px.second - 1.0) * (1.0 / Lx.second));
-			assert(lb <= ub); // safety checks
-			bel[1] = interval::value(lb, ub); // P(x=k|e)
-			bel[0] = interval::value(1.0-ub, 1.0-lb); // P(x=0|e)
+// Reset the internal state of the solver
+void cve2u::reset(const std::map<size_t, size_t>& config) {
+	
+	// Clear the buckets
+	m_buckets.clear();
+
+	// Initialize the buckets
+	size_t num_vars = nvar();
+	m_buckets.resize(num_vars);
+    std::vector<bool> used(num_vars, false);
+    for (size_t i = 0; i < m_order.size(); ++i) {
+        size_t v = m_order[i];
+        m_buckets[i].set_variable(v);
+        for (size_t j = 0; j < m_factors.size(); ++j) {
+            interval& f = m_factors[j];
+            int ch = f.get_child();
+            if (used[ch] == true) {
+                continue;
+            } else {
+                // check if the current interval factor contains the bucket var
+                if (f.vars().contains(var(v))) {
+                    used[ch] = true;
+                    m_buckets[i].add_potential(f.to_potential());
+                }
+            }
+        }
+
+		// Add evidence potential (if any)
+		if (m_evidence.find(v) != m_evidence.end()) {
+			size_t val = m_evidence[v];
+			potential pot;
+			factor f(variable_set(var(v)), 0.0);
+			f[val] = 1.0;
+			pot.add_p(f);
+			m_buckets[i].add_potential(pot);
+		}
+    }
+
+	// Add the variable assignment as evidence potentials in buckets
+	for (std::map<size_t, size_t>::const_iterator mi = config.begin(); mi != config.end(); ++mi) {
+		size_t v = mi->first;
+		size_t val = mi->second;
+		potential pot;
+		factor f(variable_set(var(v)), 0.0);
+		f[val] = 1.0;
+		pot.add_p(f);
+		size_t i = m_positions[v];
+		m_buckets[i].add_potential(pot);
+	}
+}
+
+// Evaluate a partial variable assignment
+std::pair<double, double> cve2u::eval(const std::map<size_t, size_t> &config) {
+    
+	// Reset the solver
+	reset(config);
+
+	// Compute the lower probability of evidence
+	double lower = ve(false);
+
+	// Reset the solver
+	reset(config);
+
+	// Compute the upper probability of evidence
+	double upper = ve(true);
+
+	// Return the result
+	return std::make_pair(lower, upper);
+}
+
+// Variable elimination to compute P(e)
+double cve2u::ve(bool upper) {
+
+	if (m_verbose > 0) {
+		if (upper) {
+			std::cout << "[CVE2U] Computing Upper Probability of Evidence ..." << std::endl;
+		} else {
+			std::cout << "[CVE2U] Computing Lower Probability of Evidence ..." << std::endl;
+		}
+	}
+
+	size_t num_vars = nvar();
+
+    if (m_verbose > 0) {
+        std::cout << "[DEBUG] Bucket structure:" << std::endl;
+        for (size_t i = 0; i < m_buckets.size(); ++ i) {
+            std::cout << "Bucket [" << m_buckets[i].get_variable() << "]" << std::endl;
+            std::vector<potential>& pots = m_buckets[i].potentials(); 
+            for (size_t j = 0; j < pots.size(); ++j) {
+                std::cout << pots[j] << std::endl;
+            } 
+        }
+    }
+
+	// Eliminate the variables along the minfill ordering
+    std::vector<potential> scalars;
+    for (size_t i = 0; i < num_vars; ++i) {
+        size_t v = m_order[i];
+        variable vx = var(v);
+
+		if (m_verbose > 0) {
+        	std::cout << "[CVE] Eliminating variable: " << v << std::endl;
 		}
 
-		if (m_verbose > 1) {
-			std::cout << "[DEBUG] Belief for x" << x << ": " << bel << std::endl;
+        // Combine the potentials in the bucket
+        potential comb(1.0);
+        std::vector<potential>& pots = m_buckets[i].potentials();
+        for (size_t j = 0; j < pots.size(); ++j) {
+            comb.multiply(pots[j]);
+        }
+
+        // Eliminate the bucket variable
+        potential result = comb;
+        result.sum(vx);
+
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Result before pruning:" << std::endl;
+            std::cout << result << std::endl;
+        }
+
+        // Remove dominated vertices
+		if (upper == true) {
+			result.maximize();
+		} else {
+        	result.minimize();
 		}
 
-		m_beliefs[x] = bel;
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Result after pruning:" << std::endl;
+            std::cout << result << std::endl;
+        }
+
+        // Place new potential in the appropriate bucket
+        if (result.isscalar()) {
+            scalars.push_back(result);
+        } else {
+            // Find the closest bucket that contains a variable in the potential's scope
+            for (size_t j = i + 1; j < num_vars; ++j) {
+                int y = m_buckets[j].get_variable();
+                variable vy = var(y);
+                if (result.vars().contains(vy)) {
+                    m_buckets[j].add_potential(result);
+                    break;
+                }
+            }
+        }
+    }
+
+    // After elimination, combine all scalars
+    potential r(1.0);
+    for (size_t i = 0; i < scalars.size(); ++i) {
+        r.multiply(scalars[i]);
+    }
+    
+    // Prune dominated scalars
+	if (upper == true) {
+		r.maximize();
+	} else {
+    	r.minimize();
 	}
 
-	if (m_verbose > 0) {
-		std::cout << "[L2U] Updated the beliefs" << std::endl; 
-	}
+    // Check for singleton
+    if (r.p().size() > 1) {
+        std::cout << "[CVE2U] WARNING: more than one final scalars detected: " << r.p().size() << std::endl; 
+    }
+
+    // Get the best score
+    double best_score = r.p()[0][0];
+	return best_score;
 }
 
-// Compute the lambda(x) message (x: current) -- update the m_lambda[x] factor
-void cve2u::lambda(variable x) {
-
-	size_t v = x.label();
-	double lb = 1.0, ub = 1.0;
-	for (size_t j = 0; j < m_outgoing[v].size(); ++j) {
-		size_t mi = m_outgoing[v][j];
-		lb *= m_messages[mi].lambda[0].first;
-		ub *= m_messages[mi].lambda[0].second;
-	}
-
-	m_delta.first += (isfinite(lb) && isfinite(m_lambda[v][0].first)) ? fabs(m_lambda[v][0].first - lb) : 0.0;
-	m_delta.second += (isfinite(ub) && isfinite(m_lambda[v][0].second)) ? fabs(m_lambda[v][0].second - ub) : 0.0;
-	m_lambda[v].set(0, interval::value(lb, ub));
-
-}
-
-
-/// Run the Loopy2U algorithm.
+/// Run the CVE2U algorithm to compute probability of evidence.
 void cve2u::run() {
 
 	// Start the timer and store it
@@ -184,32 +294,15 @@ void cve2u::run() {
 	// Initialize the algorithm
 	init();
 
-	// Eliminate the variables along the minfill ordering
+	// Get the lower and upper bounds on P(e)
+	reset();
+	double lower = ve(false);
+	reset();
+	double upper = ve(true);
 
-	// Update the beliefs
-	update_beliefs();
-	if (m_verbose > 0) {
-		std::cout << "[CVE2U] Finished in " << (timeSystem() - m_start_time)
-			<< " seconds" << std::endl;
-	}
-
-	// Output the marginals
-	if (m_verbose > 0) {
-		std::cout << "MAR" << std::endl;
-		std::cout << nvar();
-		for (vindex v = 0; v < nvar(); ++v) {
-			variable x = var(v);
-			const interval& bel = belief(x);
-			std::cout << " " << x.states();
-			for (size_t k = 0; k < x.states(); ++k) {
-				std::cout << " " << std::fixed
-					<< std::setprecision(MERLIN_PRECISION)
-					<< "[" << bel[k].first << "," << bel[k].second << "]";
-			}
-		}
-	
-		std::cout << std::endl;
-	}
+	std::cout << "[CVE2U] Lower P(e): " << lower << " (" << std::log10(lower) << ")" << std::endl;
+	std::cout << "[CVE2U] Upper P(e): " << upper << " (" << std::log10(upper) << ")" << std::endl;
+	std::cout << "[CVE2U] Finished in " << (timeSystem() - m_start_time) << " seconds" << std::endl;
 }
 
 /// Write the solution to the output stream
