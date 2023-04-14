@@ -60,6 +60,8 @@ int main(int argc, char** argv) {
 	eng.set_query_file(opt->queryFile);
 	eng.set_task(opt->task);
 	eng.set_algorithm(opt->algorithm);
+	eng.set_time_limit(opt->timeLimit);
+	eng.set_scorer(opt->scorer);
 	eng.set_ibound(opt->ibound);
 	eng.set_iterations(opt->iterations);
 	eng.set_debug(opt->debug);

@@ -42,6 +42,7 @@ struct ProgramOptions {
 	double memoryLimit;				///< Memory limit (in Gigs)
 	int ibound;						///< Mini-bucket i-bound
 	int algorithm;					///< Algorithm
+	int scorer;						///< Scorer used for MMAP (l2u or cve2u)
 	int task;						///< Inference task
 	std::string modelFile;			///< Model file
 	std::string evidenceFile;		///< Evidence file
@@ -86,6 +87,7 @@ inline ProgramOptions::ProgramOptions() :
 		memoryLimit(80),
 		ibound(2),
 		algorithm(MERLIN_UNKNOWN),
+		scorer(MERLIN_ALGO_L2U),
 		task(MERLIN_UNKNOWN),
 		seed(12345678),
 		debug(false),

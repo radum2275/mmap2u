@@ -1,10 +1,10 @@
 /*
- * ipe2u.h
+ * cve2u.h
  *
- *  Created on: Oct 19, 2020
+ *  Created on: 04 Apr 2023
  *      Author: radu
  *
- * Copyright (c) 2020, International Business Machines Corporation
+ * Copyright (c) 2023, International Business Machines Corporation
  * and University of California Irvine. All rights reserved.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -19,73 +19,60 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/// \file ipe2u.h
-/// \brief IPE2U for credal nets with intervals and binary variables
+/// \file cve2u.h
+/// \brief CVE2U for credal nets with intervals and binary variables
 /// \author Radu Marinescu radu.marinescu@ie.ibm.com
 
-#ifndef IBM_LOOPY_IPE2U_H_
-#define IBM_LOOPY_IPE2U_H_
+#ifndef IBM_LOOPY_CVE2U_H_
+#define IBM_LOOPY_CVE2U_H_
 
 #include "credal_net.h"
 #include "algorithm.h"
+#include "bucket.h"
 
 namespace merlin {
 
 
 /**
- * Iterated Partial Evaluation 2U (IPE2U)
+ * Credal Variable Elimination 2U (CVE2U)
  *
- * Tasks supported: MAR
- * This is an outer approximation, namely the resulting interval includes the
- * exact interval (for the marginals)
+ * Tasks supported: PE (probability of evidence)
+ *
  */
 
-
-class ipe2u: public credal_net, public algorithm {
+class cve2u: public credal_net, public algorithm {
 public:
 	typedef credal_net::findex findex;        ///< Factor index
 	typedef credal_net::vindex vindex;        ///< Variable index
 	typedef credal_net::flist flist;          ///< Collection of factor indices
-
-	class message { // directed edge message Ui -> X
-	public:
-		variable parent; // parent (Ui)
-		variable child; // child (X)
-		interval pi; // message from parent to child: pi(Ui)
-		interval lambda; // message from child to parent: scalar
-		bool evidence; // dummy message for evidence nodes
-		bool vacuous; // vacuous message for IPE2U
-
-		message(variable p, variable c) {
-			parent = p;
-			child = c;
-			pi = interval(interval::value(1.0, 1.0)); // scalar (only p=1)
-			lambda = interval(interval::value(1.0, 1.0)); // scalar
-			evidence = false;
-			vacuous = false;
-		}
-	};
 
 public:
 
 	///
 	/// \brief Default constructor.
 	///
-	ipe2u() : credal_net() {
+	cve2u() : credal_net() {
 		set_properties();
 	}
 
 	///
 	/// \brief Constructor with a credal net.
 	///
-	ipe2u(const credal_net& cn) : credal_net(cn) {
+	cve2u(const credal_net& cn) : credal_net(cn) {
+		set_properties();
+	}
+
+	///
+	/// \brief Constructor with a set of factors.
+ 	///
+	cve2u(const std::vector<interval>& fs) : credal_net(fs) {
 		set_properties();
 	}
 
 	///
 	/// \brief Destructor
 	///
-	~ipe2u() {
+	~cve2u() {
 	};
 
 	inline const interval& belief(size_t i) const {
@@ -106,14 +93,14 @@ public:
 	void write_solution(std::ostream& out, int output_format);
 
 	///
-	/// \brief Run the IPE 2U algorithm.
+	/// \brief Run the CVE2U algorithm for P(e).
 	///
 	void run();
 
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , StopIter,Threshold,Verbose,Seed );
+	MER_ENUM( Property , Verbose,Seed );
 
 
 	// Setting properties (directly or through property string):
@@ -138,7 +125,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("StopIter=10,Threshold=1e-06,Verbose=1,Seed=0");
+			set_properties("Verbose=1,Seed=0");
 			return;
 		}
 		m_verbose = 1;
@@ -146,11 +133,6 @@ public:
 		for (size_t i = 0; i < strs.size(); ++i) {
 			std::vector<std::string> asgn = merlin::split(strs[i], '=');
 			switch (Property(asgn[0].c_str())) {
-			case Property::StopIter:
-				m_iterations = atol(asgn[1].c_str());
-				break;
-			case Property::Threshold:
-				m_threshold = atof(asgn[1].c_str());
 			case Property::Verbose:
 				m_verbose = atol(asgn[1].c_str());
 				break;
@@ -164,6 +146,19 @@ public:
 	}
 
 	///
+	/// \brief Reset the internal state of the solver
+	///
+	void reset();
+	void reset(const std::map<size_t, size_t>& config);
+
+	///
+	/// @brief Compute the probability of evidence
+	/// @param config a variable assignment
+	/// @return lower and upper bounds on the probability of evidence
+	///
+	std::pair<double, double> eval(const std::map<size_t, size_t>& config);
+
+	///
 	/// \brief Set the evidence variables
 	///
 	void set_evidence(const std::map<size_t, size_t>& ev) {
@@ -171,7 +166,7 @@ public:
 	}
 
 	///
-	/// \brief Initialize the Loopy 2U algorithm.
+	/// \brief Initialize the CVE 2U algorithm.
 	///
 	void init();
 
@@ -184,67 +179,22 @@ public:
 	/// \brief Update the belief of a variable
 	///
 	void upate_belief(variable x);
+		
 
-	///
-	/// \brief Compute the pi(x) message
-	///
-	/// \param x it the current variable
-	///
-	void pi(variable x);
-	
-	///
-	/// \brief Compute the lambda(x) message
-	///
-	/// \param x it the current variable
-	///	
-	void lambda(variable x);
-	
-	///
-	/// \brief Compute the pi(x-child) message
-	///
-	/// \param x it the current variable
-	/// \param y is the child variable
-	///
-	void pi(variable x, variable y, message& m);
+protected:
 
-	///
-	/// \brief Compute the lambda(x-parent) message
-	///
-	/// \param x it the current variable
-	/// \param u is the parent variable
-	///
-	void lambda(variable x, variable u, message& m);
-
-private:
-	double hi(variable x, variable u, size_t ui, bool low, 
-		std::vector<variable>& parents, std::vector<int>& extremes);
-	double gi1(variable x, variable u, double L, 
-		std::vector<variable>& parents, std::vector<int>& extremes);
-	double gi2(variable x, variable u, double L, 
-		std::vector<variable>& parents, std::vector<int>& extremes);
-
-	void propagate();
-	void set_vacuous_messages(my_set<directed_edge>& cutset);
-	void intersect_beliefs();
+	double ve(bool upper = true);
 
 protected:
 	// Members:
 
 	variable_order_t m_order;						///< Variable order
-	std::vector<interval> m_beliefs; 					///< Marginals
+	std::vector<interval> m_beliefs; 				///< Marginals
 	std::map<size_t, size_t> m_evidence;			///< Evidence
-	size_t m_iterations;							///< Number of iterations
-	double m_threshold;								///< Convergence threshold (default=1e-06)
-	std::vector<size_t> m_schedule;					///< Propagation schedule
+	std::vector<bucket> m_buckets;					///< Bucket structure
+	std::vector<size_t> m_positions;				///< Positions of variables in ordering
 	size_t m_verbose;								///< Verbosity level
-	std::vector<interval> m_pi;						///< Pi's for each variable x 
-	std::vector<interval> m_lambda;					///< Lambda's for each variable x
-	std::vector<ipe2u::message> m_messages;			///< Edge messages	
-	std::vector<std::vector<size_t> > m_incoming;	///< Parents of a node (incoming)
-	std::vector<std::vector<size_t> > m_outgoing;	///< Children of a node (outgoing)
-	interval::value m_delta;							///< Average change in messages
 	size_t m_seed;									///< Random number generator seed
-	std::vector<std::vector<interval> > m_depot;
 };
 
 } // namespace

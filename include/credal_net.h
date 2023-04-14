@@ -28,7 +28,7 @@
 #define IBM_LOOPY_CREDAL_NET_H_
 
 #include "enum.h"
-#include "factor.h"
+#include "interval.h"
 #include "graph.h"
 #include "directed_graph.h"
 
@@ -96,7 +96,7 @@ public:
 	/// \brief Constructor from a list of factors.
 	/// \param fs 	The list of factors
 	///
-	credal_net(const std::vector<factor>& fs) :
+	credal_net(const std::vector<interval>& fs) :
 			directed_graph(), m_factors(fs), m_vadj(), m_dims() {
 		fixup();
 	};
@@ -169,11 +169,11 @@ public:
 
 		// Read the factor tables (ensure conversion to ordered scopes)
 		double lo, ub, pval;
-		std::vector<factor> factors(ncliques);
+		std::vector<interval> factors(ncliques);
 		for (size_t i = 0; i < ncliques; i++) {
 			is >> nval;
 			assert(nval == sets[i].num_states());
-			factors[i] = factor(sets[i]); // preallocate memory
+			factors[i] = interval(sets[i]); // preallocate memory
 			factors[i].set_child(cliques[i].back().label());
 			
 			convert_index ci(cliques[i], false, true); // convert from source order (littleEndian) to target order (bigEndian)
@@ -187,7 +187,7 @@ public:
 					lo = ub = pval;
 				}
 
-				factors[i][k] = factor::value(lo, ub); // save the factor value into the table
+				factors[i][k] = interval::value(lo, ub); // save the factor value into the table
 			}
 		}
 
@@ -225,7 +225,7 @@ public:
 	/// \param idx 	The index of the factor
 	/// \return the factor corresponding to that index (const reference).
 	///
-	const factor& get_factor(findex idx) const {
+	const interval& get_factor(findex idx) const {
 		return m_factors[idx];
 	};
 
@@ -234,7 +234,7 @@ public:
 	/// \param idx The index of the factor
 	/// \return the factor corresponding to the input index.
 	///
-	factor& get_factor(findex idx) {
+	interval& get_factor(findex idx) {
 		return m_factors[idx];
 	}
 	
@@ -242,7 +242,7 @@ public:
 	/// \brief Set a factor
 	/// \param i	The index of the factor
 	/// \param f	The new factor
-	void set_factor(findex i, const factor& f) {
+	void set_factor(findex i, const interval& f) {
 		m_factors[i] = f;
 	}
 
@@ -250,7 +250,7 @@ public:
 	/// \brief Accessor for the factor container.
 	/// \return the list of factors of the model.
 	///
-	const std::vector<factor>& get_factors() const {
+	const std::vector<interval>& get_factors() const {
 		return m_factors;
 	};
 
@@ -366,7 +366,7 @@ public:
 	/// \param F 	The factor to be added
 	/// \return the index associated with the newly added factor.
 	///
-	virtual findex add_factor(const factor& F) {         // add a factor to our collection
+	virtual findex add_factor(const interval& F) {         // add a factor to our collection
 		const variable_set& v = F.vars();
 		findex use = add_node();
 		//if (use>=nFactors()) _factors.push_back(F); else _factors[use]=F;
@@ -374,7 +374,7 @@ public:
 			if (m_factors.capacity() > num_factors())
 				m_factors.push_back(F);
 			else {                           // if we'd need to copy, do it manually
-				std::vector<factor> tmp;
+				std::vector<interval> tmp;
 				tmp.reserve(2 * num_factors());
 				tmp.resize(num_factors() + 1);
 				for (size_t i = 0; i < m_factors.size(); ++i)
@@ -404,7 +404,7 @@ public:
 	/// 
 	virtual void remove_factor(findex idx) {        // remove a factor from the collection
 		erase(m_vadj, idx, get_factor(idx).vars());		// remove from variable lists
-		m_factors[idx] = factor();                       // empty its position
+		m_factors[idx] = interval();                       // empty its position
 		remove_node(idx);								// and remove the node
 	}
 
@@ -583,12 +583,106 @@ public:
 	}
 
     ///
-    /// \brief Find a minfill variable elimination order.
-    /// \param ord_type 	The ordering method
+    /// \brief Find a constrained minfill variable elimination order. The SUM
+	///		   variables are eliminated first followed by the MAP variables.
     /// \return the variable ordering corresponding to the method, such that
     ///		the first variable in the ordering is eliminated first.
     ///
-	variable_order_t order2() const {
+	variable_order_t constrained_order(const std::vector<size_t>& query) const {
+		variable_order_t order;
+		order.resize(nvar());
+
+		std::vector<variable_set> adj = mrf();
+		typedef std::pair<double, size_t> node_score_t;
+		typedef std::multimap<double, size_t> score_map_t;
+		score_map_t scores_max, scores_sum;
+		std::vector<score_map_t::iterator> reverse(nvar());
+		
+		// partition the variables into SUM and MAP subsets
+		std::vector<bool> var_types(nvar(), false);
+		std::set<size_t> max_vars, sum_vars;
+		max_vars.insert(query.begin(), query.end());
+		for (size_t v = 0; v < nvar(); ++v) {
+			if (max_vars.find(v) == max_vars.end()) {
+				sum_vars.insert(v);
+			} else {
+				var_types[v] = true; // mark it as MAX variable
+			}
+		}
+
+		// get the initial scores
+		for (size_t v = 0; v < nvar(); v++) {
+			if (max_vars.find(v) == max_vars.end()) {
+				reverse[v] = scores_sum.insert(node_score_t(order_score(adj, v), v));
+			} else {
+				reverse[v] = scores_max.insert(node_score_t(order_score(adj, v), v));
+			}
+		}
+
+		for (size_t ii = 0; ii < nvar(); ++ii) { // iterate through, selecting variables
+			
+			// choose a random entry from among the smallest, but must be sum before max
+			if (!sum_vars.empty()) { // select SUM variables first
+				score_map_t::iterator first = scores_sum.begin();
+				score_map_t::iterator last = scores_sum.upper_bound(first->first);
+				std::advance(first, randi(std::distance(first, last)));
+				size_t i = first->second;
+
+				order[ii] = var(i).label();  // save its label in the ordering
+				sum_vars.erase(ii); // remove it from the list
+				scores_sum.erase(reverse[i]);	 // remove it from our list
+				variable_set vi = adj[i]; // go through adjacent variables (copy: adj may change)
+				variable_set fix;		  //  and keep track of which need updating
+				for (variable_set::const_iterator j = vi.begin(); j != vi.end(); ++j) {
+					size_t v = _vindex(*j);
+					adj[v] |= vi;             // and update their adjacency structures
+					adj[v] /= var(i);
+					fix |= adj[v];	// come back and recalculate their scores
+				}
+				for (variable_set::const_iterator j = fix.begin(); j != fix.end(); ++j) {
+					size_t jj = j->label();
+					if (var_types[jj] == false) { // SUM var
+						scores_sum.erase(reverse[jj]);	// remove and update (score,index) pairs
+						reverse[jj] = scores_sum.insert(node_score_t(order_score(adj, jj), jj));
+					} else {
+						scores_max.erase(reverse[jj]);	// remove and update (score,index) pairs
+						reverse[jj] = scores_max.insert(node_score_t(order_score(adj, jj), jj));
+					}
+				}
+			} else { // followed by MAX variables
+				score_map_t::iterator first = scores_max.begin();
+				score_map_t::iterator last = scores_max.upper_bound(first->first);
+				std::advance(first, randi(std::distance(first, last)));
+				size_t i = first->second;
+
+				order[ii] = var(i).label();  // save its label in the ordering
+				max_vars.erase(ii); // remove it from the list
+				scores_max.erase(reverse[i]);	 // remove it from our list
+				variable_set vi = adj[i]; // go through adjacent variables (copy: adj may change)
+				variable_set fix;		  //  and keep track of which need updating
+				for (variable_set::const_iterator j = vi.begin(); j != vi.end(); ++j) {
+					size_t v = _vindex(*j);
+					adj[v] |= vi;             // and update their adjacency structures
+					adj[v] /= var(i);
+					fix |= adj[v];	// come back and recalculate their scores
+				}
+				for (variable_set::const_iterator j = fix.begin(); j != fix.end(); ++j) {
+					size_t jj = j->label();
+					scores_max.erase(reverse[jj]);	// remove and update (score,index) pairs
+					reverse[jj] = scores_max.insert(node_score_t(order_score(adj, jj), jj));
+				}
+			}
+		}
+
+		return order;
+	}
+
+    ///
+    /// \brief Find a minfill variable elimination order.
+    /// \return the variable ordering corresponding to the method, such that
+    ///		the first variable in the ordering is eliminated first.
+    ///
+	variable_order_t order2() {
 
 		// variable order to be computed
 		variable_order_t order;
@@ -719,6 +813,266 @@ public:
 			}
 		}
 
+		m_width = width;
+
+		return order;
+	}
+
+    ///
+    /// \brief Find a constrainted minfill variable elimination order. The MAP
+	///	 	   (query) variables are eliminated after the SUM variables.
+    /// \return the variable ordering corresponding to the method, such that
+    ///		the first variable in the ordering is eliminated first.
+    ///
+	variable_order_t constrained_order2(const std::vector<size_t>& query) {
+
+		// variable order to be computed
+		variable_order_t order;
+
+		// partition the variables into SUM and MAP subsets
+		std::vector<bool> var_types(nvar(), false);
+		std::set<size_t> max_vars, sum_vars;
+		max_vars.insert(query.begin(), query.end());
+		for (size_t v = 0; v < nvar(); ++v) {
+			if (max_vars.find(v) == max_vars.end()) {
+				sum_vars.insert(v);
+			} else {
+				var_types[v] = true; // mark it as MAX variable
+			}
+		}
+
+		// create a temporary graph
+		graph G(nvar());
+		std::vector<variable_set> adj = mrf();
+		for (size_t i = 0; i < nvar(); ++i) {
+			variable_set& vs = adj[i];
+			for (variable_set::const_iterator vi = vs.begin();
+					vi != vs.end(); ++vi) {
+				size_t j = vi->label();
+				if (j != i) G.add_edge(i, j);
+			}
+		}
+
+		// initialize the order
+		size_t n = nvar();
+		order.reserve(n);
+
+		// keeps track of node scores
+		std::vector<int> scores(n);
+		for (size_t i = 0; i < n; ++i) {
+			scores[i] = order_score(G, i);
+		}
+
+		// eliminate the SUM nodes until all gone
+		int min_score = -1;
+		size_t width = 0;
+		while ( !sum_vars.empty() ) {
+
+			// keeps track of minimal score nodes
+			std::vector<size_t> candidates; // minimal score of 1 or higher
+			std::vector<size_t> simplicial; // simplicial nodes (score 0)
+
+			min_score = std::numeric_limits<int>::max();
+
+			// find node to eliminate
+			for (size_t i = 0; i < n; ++i) {
+				if (sum_vars.find(i) != sum_vars.end()) {
+					if (scores[i] == 0) { // score 0
+						simplicial.push_back(i);
+					} else if (scores[i] < min_score) { // new, lower score (but greater 0)
+						min_score = scores[i];
+						candidates.clear();
+						candidates.push_back(i);
+					} else if (scores[i] == min_score) { // current min. found again
+						candidates.push_back(i);
+					}
+				}
+			}
+
+			// eliminate all nodes with score=0 -> no edges will have to be added
+			for (std::vector<size_t>::iterator it = simplicial.begin();
+					it != simplicial.end(); ++it) {
+				size_t v = (*it);
+				order.push_back(v);
+				sum_vars.erase(v); // remove the node from the list
+				my_set<edge_id> temp = G.neighbors(v);
+				width = std::max(width, temp.size());
+				for (my_set<edge_id>::const_iterator ci = temp.begin();
+						ci != temp.end(); ++ci) {
+					size_t i = ci->first, j = ci->second;
+					G.remove_edge(i, j);
+				}
+				G.remove_node(v); // and adj edges
+				scores[v] = std::numeric_limits<int>::max();
+			}
+
+			// anything left to eliminate? If not, we are done!
+			if (min_score == std::numeric_limits<int>::max()) {
+				break;
+			}
+
+			// Pick one of the minimal score nodes (with score >= 1),
+			// breaking ties randomly
+			size_t cand = candidates[randi(candidates.size())];
+			//size_t cand = candidates[0]; // first candidate in list (lexicograhically)
+			order.push_back(cand);
+			sum_vars.erase(cand); // remove the SUM var from the list
+
+			// remember it's neighbors, to be used later
+			my_set<edge_id> nlist = G.neighbors(cand);
+			std::set<size_t> neighbors;
+			for (my_set<edge_id>::const_iterator ci = nlist.begin();
+					ci != nlist.end(); ++ci) {
+				if (ci->first == cand && ci->second != cand)
+					neighbors.insert(ci->second);
+			}
+
+			// connect neighbors in primal graph
+			std::set<size_t>::iterator it1, it2;
+			for (it1 = neighbors.begin(); it1 != neighbors.end(); ++it1) {
+				it2 = it1;
+				while (++it2 != neighbors.end()) {
+					size_t i = *it1, j = *it2;
+					G.add_edge(i, j);
+				}
+			}
+
+			// compute candidates for score update (node's neighbors and their neighbors)
+			width = std::max(width, neighbors.size());
+			std::set<size_t> to_fix(neighbors);
+			for (std::set<size_t>::const_iterator it = neighbors.begin();
+					it != neighbors.end(); ++it) {
+				size_t v = (*it);
+				const my_set<edge_id>& temp = G.neighbors(v);
+				for (my_set<edge_id>::const_iterator ci = temp.begin();
+						ci != temp.end(); ++ci) {
+					if (ci->first == v && v != ci->second)
+						to_fix.insert(ci->second);
+				}
+			}
+			to_fix.erase(cand);
+
+			// remove node from primal graph
+			for (my_set<edge_id>::const_iterator ci = nlist.begin();
+					ci != nlist.end(); ++ci) {
+				size_t i = ci->first, j = ci->second;
+				G.remove_edge(i, j);
+			}
+			G.remove_node(cand); // and adj edges
+			scores[cand] = std::numeric_limits<int>::max(); // tag score
+
+			// update scores in primal graph (candidate nodes computed earlier)
+			for (std::set<size_t>::const_iterator it = to_fix.begin();
+					it != to_fix.end(); ++it) {
+				size_t v = (*it);
+				scores[v] = order_score(G, v);
+			}
+		}
+
+		// eliminate the MAX variables
+		while ( !max_vars.empty() ) {
+
+			// keeps track of minimal score nodes
+			std::vector<size_t> candidates; // minimal score of 1 or higher
+			std::vector<size_t> simplicial; // simplicial nodes (score 0)
+
+			min_score = std::numeric_limits<int>::max();
+
+			// find node to eliminate
+			for (size_t i = 0; i < n; ++i) {
+				if (scores[i] == 0) { // score 0
+					simplicial.push_back(i);
+				} else if (scores[i] < min_score) { // new, lower score (but greater 0)
+					min_score = scores[i];
+					candidates.clear();
+					candidates.push_back(i);
+				} else if (scores[i] == min_score) { // current min. found again
+					candidates.push_back(i);
+				}
+			}
+
+			// eliminate all nodes with score=0 -> no edges will have to be added
+			for (std::vector<size_t>::iterator it = simplicial.begin();
+					it != simplicial.end(); ++it) {
+				size_t v = (*it);
+				order.push_back(v);
+				max_vars.erase(v); // remove the node from the list
+				my_set<edge_id> temp = G.neighbors(v);
+				width = std::max(width, temp.size());
+				for (my_set<edge_id>::const_iterator ci = temp.begin();
+						ci != temp.end(); ++ci) {
+					size_t i = ci->first, j = ci->second;
+					G.remove_edge(i, j);
+				}
+				G.remove_node(v); // and adj edges
+				scores[v] = std::numeric_limits<int>::max();
+			}
+
+			// anything left to eliminate? If not, we are done!
+			if (max_vars.empty()) {
+				break;
+			}
+
+			// Pick one of the minimal score nodes (with score >= 1),
+			// breaking ties randomly
+			size_t cand = candidates[randi(candidates.size())];
+			//size_t cand = candidates[0]; // first candidate in list (lexicograhically)
+			order.push_back(cand);
+			max_vars.erase(cand); // remove the SUM var from the list
+			
+			// remember it's neighbors, to be used later
+			my_set<edge_id> nlist = G.neighbors(cand);
+			std::set<size_t> neighbors;
+			for (my_set<edge_id>::const_iterator ci = nlist.begin();
+					ci != nlist.end(); ++ci) {
+				if (ci->first == cand && ci->second != cand)
+					neighbors.insert(ci->second);
+			}
+
+			// connect neighbors in primal graph
+			std::set<size_t>::iterator it1, it2;
+			for (it1 = neighbors.begin(); it1 != neighbors.end(); ++it1) {
+				it2 = it1;
+				while (++it2 != neighbors.end()) {
+					size_t i = *it1, j = *it2;
+					G.add_edge(i, j);
+				}
+			}
+
+			// compute candidates for score update (node's neighbors and their neighbors)
+			width = std::max(width, neighbors.size());
+			std::set<size_t> to_fix(neighbors);
+			for (std::set<size_t>::const_iterator it = neighbors.begin();
+					it != neighbors.end(); ++it) {
+				size_t v = (*it);
+				const my_set<edge_id>& temp = G.neighbors(v);
+				for (my_set<edge_id>::const_iterator ci = temp.begin();
+						ci != temp.end(); ++ci) {
+					if (ci->first == v && v != ci->second)
+						to_fix.insert(ci->second);
+				}
+			}
+			to_fix.erase(cand);
+
+			// remove node from primal graph
+			for (my_set<edge_id>::const_iterator ci = nlist.begin();
+					ci != nlist.end(); ++ci) {
+				size_t i = ci->first, j = ci->second;
+				G.remove_edge(i, j);
+			}
+			G.remove_node(cand); // and adj edges
+			scores[cand] = std::numeric_limits<int>::max(); // tag score
+
+			// update scores in primal graph (candidate nodes computed earlier)
+			for (std::set<size_t>::const_iterator it = to_fix.begin();
+					it != to_fix.end(); ++it) {
+				size_t v = (*it);
+				scores[v] = order_score(G, v);
+			}
+		}
+
+		m_width = width;
+
 		return order;
 	}
 
@@ -798,7 +1152,7 @@ protected:
 		size_t nVar = 0;
 		m_vadj.clear();
 		m_dims.clear();
-		for (std::vector<merlin::factor>::iterator f = m_factors.begin();
+		for (std::vector<merlin::interval>::iterator f = m_factors.begin();
 				f != m_factors.end(); ++f) {
 			if (f->nvar())
 				nVar = std::max(nVar, f->vars().rbegin()->label() + 1);
@@ -876,13 +1230,15 @@ protected:
 protected:
 	// Members:
 
-	std::vector<factor> m_factors;  ///< Collection of all factors in the model.
+	std::vector<interval> m_factors;  ///< Collection of all factors in the model.
 
 protected:
 	// Members:
 
 	std::vector<flist> m_vadj;		///< Variable adjacency lists (variables to factors)
 	std::vector<double> m_dims;		///< Dimensions of variables as stored in graphical model object
+	size_t m_width;					///< Induced width of the credal network
+
 };
 
 } // namespace

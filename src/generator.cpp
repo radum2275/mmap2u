@@ -256,17 +256,17 @@ bool generator::make_random() {
 			argv |= variable(scope[j], 2);
 		}
 
-		factor f = factor(argv);
+		interval f = interval(argv);
 		assert(i == (int)scope.back()); // safety check
 		f.set_child(scope.back());
 		f.fill_random_bayes();
 		for (size_t k = 0; k < f.numel(); ++k) {
-			factor::value val = f[k];
+			interval::value val = f[k];
 			double a = val.first;
 			double b = val.second;
 			a = std::max(0.0, a - m_epsilon);
 			b = std::min(1.0, b + m_epsilon);
-			f[k] = factor::value(a, b);
+			f[k] = interval::value(a, b);
 		}
 
 		m_factors.push_back(f);
@@ -418,13 +418,13 @@ bool generator::make_random_lcn() {
 			argv |= variable(scope[j], 2);
 		}
 
-		factor f = factor(argv);
+		interval f = interval(argv);
 		// assert(i == (int)scope.back()); // safety check
 		f.set_child(scope.back());
 		//f.fill_random_bayes();
 		f.fill_random();
 		for (size_t k = 0; k < f.numel(); ++k) {
-			factor::value val = f[k];
+			interval::value val = f[k];
 			double a = val.first;
 			double b = val.second;
 			// a = 0;
@@ -439,7 +439,7 @@ bool generator::make_random_lcn() {
 				b = 1.0;
 			}
 
-			f[k] = factor::value(a, b);
+			f[k] = interval::value(a, b);
 		}
 
 		m_factors.push_back(f);
@@ -494,12 +494,12 @@ bool generator::make_random_lcn2(){
 			argv |= variable(scope[j], 2);
 		}
 
-		factor f = factor(argv);
+		interval f = interval(argv);
 		f.set_child(scope.back());
 		f.fill_random_bayes();
 		//f.fill_random();
 		for (size_t k = 0; k < f.numel(); ++k) {
-			factor::value val = f[k];
+			interval::value val = f[k];
 			double a = val.first;
 			double b = val.second;
 			if (k % 2 == 0) {
@@ -510,7 +510,7 @@ bool generator::make_random_lcn2(){
 				b = 1.0;
 			}
 
-			f[k] = factor::value(a, b);
+			f[k] = interval::value(a, b);
 		}
 
 		m_factors.push_back(f);
@@ -600,12 +600,12 @@ bool generator::make_random_lcn3() {
 			argv |= variable(scope[j], 2);
 		}
 
-		factor f = factor(argv);
+		interval f = interval(argv);
 		f.set_child(scope.back());
 		f.fill_random_bayes();
 		//f.fill_random();
 		for (size_t k = 0; k < f.numel(); ++k) {
-			factor::value val = f[k];
+			interval::value val = f[k];
 			double a = val.first;
 			double b = val.second;
 			if (k % 2 == 0) {
@@ -616,7 +616,7 @@ bool generator::make_random_lcn3() {
 				b = 1.0;
 			}
 
-			f[k] = factor::value(a, b);
+			f[k] = interval::value(a, b);
 		}
 
 		m_factors.push_back(f);
@@ -698,17 +698,17 @@ bool generator::make_grid() {
 			argv |= variable(scope[j], 2);
 		}
 
-		factor f = factor(argv);
+		interval f = interval(argv);
 		assert(i == (int)scope.back()); // safety check
 		f.set_child(scope.back());
 		f.fill_random_bayes();
 		for (size_t k = 0; k < f.numel(); ++k) {
-			factor::value val = f[k];
+			interval::value val = f[k];
 			double a = val.first;
 			double b = val.second;
 			a = std::max(0.0, a - m_epsilon);
 			b = std::min(1.0, b + m_epsilon);
-			f[k] = factor::value(a, b);
+			f[k] = interval::value(a, b);
 		}
 
 		m_factors.push_back(f);
@@ -856,17 +856,17 @@ bool generator::make_ktree() {
 			argv |= variable(scope[j], 2);
 		}
 
-		factor f = factor(argv);
+		interval f = interval(argv);
 		assert(i == (int)scope.back()); // safety check
 		f.set_child(scope.back());
 		f.fill_random_bayes();
 		for (size_t k = 0; k < f.numel(); ++k) {
-			factor::value val = f[k];
+			interval::value val = f[k];
 			double a = val.first;
 			double b = val.second;
 			a = std::max(0.0, a - m_epsilon);
 			b = std::min(1.0, b + m_epsilon);
-			f[k] = factor::value(a, b);
+			f[k] = interval::value(a, b);
 		}
 
 		m_factors.push_back(f);
@@ -926,7 +926,7 @@ void generator::write_solution(std::ostream& os, int output_format) {
 
 	// Write the factor tables
 	for (size_t i = 0; i < m; ++i) {
-		const factor& fn = m_factors[i];
+		const interval& fn = m_factors[i];
 		os << fn.numel() << std::endl;
 		std::vector<variable> orig_scope;
 		for (variable_set::const_iterator vi = fn.vars().begin();
@@ -936,7 +936,7 @@ void generator::write_solution(std::ostream& os, int output_format) {
 		convert_index cv(scopes[i], false, orig_scope, true);
 		for (size_t j = 0; j < fn.numel(); ++j) {
 			size_t k = cv.convert(j);
-			factor::value val = fn.get(k);
+			interval::value val = fn.get(k);
 			os << " " << std::setiosflags(std::ios::fixed)
 				<< std::setprecision(8) << val.first << " " << val.second << std::endl;
 		}

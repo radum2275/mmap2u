@@ -24,6 +24,7 @@
 #include "merlin.h"
 #include "loopy2u.h"
 #include "ipe2u.h"
+#include "cve2u.h"
 #include "bn2cn.h"
 #include "mmap2u.h"
 #include "generator.h"
@@ -38,6 +39,7 @@ Merlin::Merlin() {
 	m_algorithm = MERLIN_ALGO_L2U;
 	m_ibound = 4;
 	m_iterations = 10;
+	m_time_limit = -1;
 	m_samples = 100;
 	m_debug = false;
 	m_verbose = 0;
@@ -92,6 +94,14 @@ void Merlin::set_seed(size_t s) {
 ///
 void Merlin::set_algorithm(size_t alg) {
 	m_algorithm = alg;
+}
+
+///
+/// @brief Set the scorer algorithm (for MMAP)
+/// @param s the scoring method code
+///
+void Merlin::set_scorer(size_t s) {
+	m_scorer = s;
 }
 
 ///
@@ -483,6 +493,14 @@ int Merlin::run() {
 				s.set_evidence(m_evidence);
 				s.run();
 				s.write_solution(std::cout, m_outputFormat);
+			} else if (m_algorithm == MERLIN_ALGO_CVE2U) {
+				merlin::cve2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "Verbose=" << m_verbose << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
 			} else if (m_algorithm == MERLIN_ALGO_MMAP_HILL) {
 				merlin::mmap2u s(m_gmo);
 				std::ostringstream oss;
@@ -493,10 +511,12 @@ int Merlin::run() {
 					<< "Alpha=" << m_alpha << ","
 					<< "MaxFlips=" << m_max_flips << ","
 					<< "SearchMethod=hc,"
+					<< "Scorer=" << m_scorer << ","
 					<< "Threshold=" << m_threshold << ","
 					<< "Verbose=" << m_verbose << ","
 					<< "QueryType=" << m_query_type << ","
 					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
@@ -513,11 +533,13 @@ int Merlin::run() {
 					<< "Alpha=" << m_alpha << ","
 					<< "MaxFlips=" << m_max_flips << ","
 					<< "SearchMethod=ts,"
+					<< "Scorer=" << m_scorer << ","
 					<< "Threshold=" << m_threshold << ","
 					<< "Verbose=" << m_verbose << ","
 					<< "QueryType=" << m_query_type << ","
 					<< "TabooSize=" << m_taboo_size << ","
 					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
@@ -534,16 +556,62 @@ int Merlin::run() {
 					<< "Alpha=" << m_alpha << ","
 					<< "MaxFlips=" << m_max_flips << ","
 					<< "SearchMethod=sa,"
+					<< "Scorer=" << m_scorer << ","
 					<< "Threshold=" << m_threshold << ","
 					<< "Verbose=" << m_verbose << ","
 					<< "QueryType=" << m_query_type << ","
 					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
 				s.set_query(m_query);
 				s.run();
 				s.write_solution(std::cout, m_outputFormat);
+			} else if (m_algorithm == MERLIN_ALGO_MMAP_CVE) {
+				merlin::mmap2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "StopIter=" << m_iterations << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitMethod=" << m_init_method << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "SearchMethod=cve,"
+					<< "Scorer=" << m_scorer << ","
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.set_query(m_query);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MMAP_NAIVE) {
+				merlin::mmap2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "StopIter=" << m_iterations << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitMethod=" << m_init_method << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "SearchMethod=naive,"
+					<< "Scorer=" << m_scorer << ","
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.set_query(m_query);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
 			} else if (m_algorithm == MERLIN_ALGO_CONVERT) {
 				merlin::bn2cn s(m_gmo);
 				std::ostringstream oss;

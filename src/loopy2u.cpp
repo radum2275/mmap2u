@@ -85,8 +85,8 @@ void loopy2u::init() {
 	// Initialize the Pi- and Lambda-messages for each variable
 	for (size_t v = 0; v < nvar(); ++v) {
 		//variable_set vs(var(v));
-		m_pi.push_back(factor(factor::value(1.0, 1.0)));
-		m_lambda.push_back(factor(factor::value(1.0, 1.0)));
+		m_pi.push_back(interval(interval::value(1.0, 1.0)));
+		m_lambda.push_back(interval(interval::value(1.0, 1.0)));
 	}
 
 	// Initialize the parent-to-child and child-to-parent messages
@@ -117,7 +117,7 @@ void loopy2u::init() {
 			variable p = var(x);
 			variable dummy(d++, 1);
 			message m(p, dummy);
-			m.lambda = (xi == 0) ? factor::value(0, 0) : factor::value(infty(), infty());
+			m.lambda = (xi == 0) ? interval::value(0, 0) : interval::value(infty(), infty());
 			m.evidence = true;
 
 			m_messages.push_back(m);
@@ -169,7 +169,7 @@ void loopy2u::init() {
 	}
 
 	// Initialize the average change in messages (lower and upper bounds)
-	m_delta = factor::value(0.0, 0.0);
+	m_delta = interval::value(0.0, 0.0);
 
 	// Calculate total initialization time
 	double elapsed = (timeSystem() - m_start_time);
@@ -199,19 +199,19 @@ void loopy2u::update_beliefs() {
 	m_beliefs.resize(nvar());
 	for (size_t x = 0; x < nvar(); ++x) {
 		variable_set vs(var(x));
-		factor bel(vs);
+		interval bel(vs);
 		try { // evidence variable
 			size_t k = m_evidence.at(x);
-			bel[k] = factor::value(1.0, 1.0);
-			bel[1 - k] = factor::value(0.0, 0.0);
+			bel[k] = interval::value(1.0, 1.0);
+			bel[1 - k] = interval::value(0.0, 0.0);
 		} catch(std::out_of_range e) { // non-evidence variable
-			factor::value Lx = m_lambda[x].get(0);
-			factor::value Px = m_pi[x].get(0);
+			interval::value Lx = m_lambda[x].get(0);
+			interval::value Px = m_pi[x].get(0);
 			double lb = 1.0 / (1.0 + (1.0 / Px.first - 1.0) * (1.0 / Lx.first));
 			double ub = 1.0 / (1.0 + (1.0 / Px.second - 1.0) * (1.0 / Lx.second));
 			assert(lb <= ub); // safety checks
-			bel[1] = factor::value(lb, ub); // P(x=k|e)
-			bel[0] = factor::value(1.0-ub, 1.0-lb); // P(x=0|e)
+			bel[1] = interval::value(lb, ub); // P(x=k|e)
+			bel[0] = interval::value(1.0-ub, 1.0-lb); // P(x=0|e)
 		}
 
 		if (m_verbose > 1) {
@@ -281,7 +281,7 @@ void loopy2u::pi(variable x) {
 				}
 
 				// Get P(X|U1...Un)
-				factor::value val = m_factors[v].get_value(config);
+				interval::value val = m_factors[v].get_value(config);
 				double plb = val.first; // lower bound
 				double pub = val.second; // upper bound
 
@@ -290,7 +290,7 @@ void loopy2u::pi(variable x) {
 					size_t mi = m_incoming[v][ui];
 					size_t s = values[ui];
 					double pi = 1.0;
-					factor::value interval = m_messages[mi].pi[0];
+					interval::value interval = m_messages[mi].pi[0];
 					if (extremes[ui] == 0) { // low
 						pi = (s == 1) ? interval.first : (1.0 - interval.first);
 					} else { // high
@@ -313,7 +313,7 @@ void loopy2u::pi(variable x) {
 		assert(lb <= ub); // safety checks
 		m_delta.first += fabs(m_pi[v][0].first - lb);
 		m_delta.second += fabs(m_pi[v][0].second - ub);
-		m_pi[v].set(0, factor::value(lb, ub));
+		m_pi[v].set(0, interval::value(lb, ub));
 	}
 
 	if (m_verbose > 1) {
@@ -334,7 +334,7 @@ void loopy2u::lambda(variable x) {
 
 	m_delta.first += (isfinite(lb) && isfinite(m_lambda[v][0].first)) ? fabs(m_lambda[v][0].first - lb) : 0.0;
 	m_delta.second += (isfinite(ub) && isfinite(m_lambda[v][0].second)) ? fabs(m_lambda[v][0].second - ub) : 0.0;
-	m_lambda[v].set(0, factor::value(lb, ub));
+	m_lambda[v].set(0, interval::value(lb, ub));
 
 	if (m_verbose > 1) {
 		std::cout << "[DEBUG] Computed LAMBDA(x) for x" << x << ": " << m_lambda[v] << std::endl;
@@ -346,14 +346,14 @@ void loopy2u::pi(variable x, variable y, message& m) {
 	
 	if (m.evidence) return; // nothing to do for dummy messages (evidence)
 
-	factor& f = m.pi; // pi-message to be updated
+	interval& f = m.pi; // pi-message to be updated
 	size_t v = x.label();
 	double lb = 1.0, ub = 1.0;
 	double plb = 1.0, pub = 1.0;
-	factor::value Px = m_pi[v].get(0);
+	interval::value Px = m_pi[v].get(0);
 	for (size_t j = 0; j < m_outgoing[v].size(); ++j) {
 		size_t mi = m_outgoing[v][j];
-		factor::value L = m_messages[mi].lambda.get(0);
+		interval::value L = m_messages[mi].lambda.get(0);
 		if (m_messages[mi].child != y) {
 			plb *= L.first; // lower bound
 			pub *= L.second; // upper bound
@@ -367,7 +367,7 @@ void loopy2u::pi(variable x, variable y, message& m) {
 	assert(lb <= ub);
 	m_delta.first += fabs(f[0].first - lb);
 	m_delta.second += fabs(f[0].second - ub);
-	f[0] = factor::value(lb, ub);
+	f[0] = interval::value(lb, ub);
 
 	if (m_verbose > 1) {
 		std::cout << "[DEBUG] Computed PI(x" << x << ",x" << y << ") for parent x" << x << " to child x" << y << ": " << f << std::endl;
@@ -429,7 +429,7 @@ double loopy2u::hi(variable x, variable u, size_t ui, bool low,
 			size_t mi = m_incoming[v][vi];
 			size_t s = values[vi];
 			double pi = 1.0;
-			factor::value interval = m_messages[mi].pi[0];
+			interval::value interval = m_messages[mi].pi[0];
 			if (extremes[vi] == 0) { // low
 				pi = (s == 1) ? interval.first : (1.0 - interval.first);
 			} else { // high
@@ -473,7 +473,7 @@ double loopy2u::gi2(variable x, variable u, double L,
 // Compute the lambda(x-parent) message (x: current, u: parent) -- scalar
 void loopy2u::lambda(variable x, variable u, message& m) {
 	
-	factor& f = m.lambda; // lambda-message to be updated
+	interval& f = m.lambda; // lambda-message to be updated
 	size_t v = x.label();
 	std::vector<variable> parents; // other than 'u'
 	for (size_t i = 0; i < m_incoming[v].size(); ++i) {
@@ -530,7 +530,7 @@ void loopy2u::lambda(variable x, variable u, message& m) {
 
 	m_delta.first += (isfinite(lb) && isfinite(f[0].first)) ? fabs(f[0].first - lb) : 0.0;
 	m_delta.second += (isfinite(ub) && isfinite(f[0].second)) ? fabs(f[0].second - ub) : 0.0;
-	f[0] = factor::value(lb, ub);
+	f[0] = interval::value(lb, ub);
 	if (m_verbose > 1) {
 		std::cout << "[DEBUG] Computed LAMBDA(x" << x << ",x" << u << ") from child x" << x << " to parent x" << u << ": " << f << std::endl;
  	}
@@ -553,7 +553,7 @@ void loopy2u::run() {
 	}
 
 	for (size_t iter = 1; iter <= m_iterations; ++iter) {
-		m_delta = factor::value(0.0, 0.0);
+		m_delta = interval::value(0.0, 0.0);
 		for (size_t k = 0; k < m_schedule.size(); ++k) {
 			size_t v = m_schedule[k];
 			variable x = var(v);
@@ -627,7 +627,7 @@ void loopy2u::run() {
 		std::cout << nvar();
 		for (vindex v = 0; v < nvar(); ++v) {
 			variable x = var(v);
-			const factor& bel = belief(x);
+			const interval& bel = belief(x);
 			std::cout << " " << x.states();
 			for (size_t k = 0; k < x.states(); ++k) {
 				std::cout << " " << std::fixed
@@ -656,7 +656,7 @@ void loopy2u::write_solution(std::ostream& out, int output_format) {
 			out << " \"states\" : " << x.states() << ", ";
 			out << " \"probabilities\" : [";
 			
-			const factor& bel = belief(x);
+			const interval& bel = belief(x);
 			for (size_t k = 0; k < x.states(); ++k) {
 				out << "{";
 				out << " \"state\" : " << k << ", ";
@@ -681,7 +681,7 @@ void loopy2u::write_solution(std::ostream& out, int output_format) {
 		out << nvar();
 		for (vindex v = 0; v < nvar(); ++v) {
 			variable x = var(v);
-			const factor& bel = belief(x);
+			const interval& bel = belief(x);
 			out << " " << x.states();
 			for (size_t k = 0; k < x.states(); ++k) {
 				out << " " << std::fixed
