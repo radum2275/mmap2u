@@ -34,7 +34,7 @@ void mmap2u::init() {
 	rand_seed(m_seed); // set the random number generator seed
 
     // Init scorer for shc, ts, sa and gls
-    if ( (m_search_method.compare("shc") == 0)
+    if ( (m_search_method.compare("hc") == 0)
         || (m_search_method.compare("ts") == 0)
         || (m_search_method.compare("sa") == 0)
         || (m_search_method.compare("gls") == 0) ) {
