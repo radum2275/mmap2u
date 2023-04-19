@@ -183,9 +183,9 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 		if (vm.count("scorer")) {
 			std::string scorer = vm["scorer"].as<std::string>();
 			if (scorer.compare("l2u") == 0) {
-				opt->scorer = MERLIN_ALGO_L2U;
+				opt->scorer = "l2u";
 			} else if (scorer.compare("cve2u") == 0) {
-				opt->scorer = MERLIN_ALGO_CVE2U;	
+				opt->scorer = "cve2u";	
 			} else {
 				std::string err_msg("Scorer ");
 				err_msg += scorer + " is not supported.";

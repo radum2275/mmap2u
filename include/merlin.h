@@ -46,7 +46,7 @@ protected:
 
 	size_t m_task;						///< Inference task (PR, MAR, MAP, MMAP).
 	size_t m_algorithm;					///< Inference algorithm
-	size_t m_scorer;					///< Scorer algorithm for MMAP
+	std::string m_scorer;				///< Scorer algorithm for MMAP
 	size_t m_ibound;					///< Parameter: i-bound
 	size_t m_iterations;				///< Parameter: number of iterations
 	size_t m_samples;					///< Parameter: number of samples
@@ -121,7 +121,7 @@ public:
 	/// @brief Set the scorer algorithm (for MMAP)
 	/// @param s the scoring method
 	///
-	void set_scorer(size_t s);
+	void set_scorer(std::string s);
 
 	///
 	/// @brief Set the time limit

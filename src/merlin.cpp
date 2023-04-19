@@ -37,6 +37,7 @@
 Merlin::Merlin() {
 	m_task = MERLIN_TASK_MAR;
 	m_algorithm = MERLIN_ALGO_L2U;
+	m_scorer = "l2u";
 	m_ibound = 4;
 	m_iterations = 10;
 	m_time_limit = -1;
@@ -100,7 +101,7 @@ void Merlin::set_algorithm(size_t alg) {
 /// @brief Set the scorer algorithm (for MMAP)
 /// @param s the scoring method code
 ///
-void Merlin::set_scorer(size_t s) {
+void Merlin::set_scorer(std::string s) {
 	m_scorer = s;
 }
 
