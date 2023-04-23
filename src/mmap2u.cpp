@@ -989,6 +989,219 @@ void mmap2u::variable_elimination2() {
     std::cout << "[CVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
 }
 
+// Credal Mini-Buckets for MMAP (approximate)
+void mmap2u::mini_buckets2() {
+
+    // Initialize the solver
+    std::cout << "[CMBE] Running Credal Mini-Buckets for MMAP" << std::endl;
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        std::cout << "[CMBE] Query type: maximax" << std::endl;
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        std::cout << "[CMBE] Query type: maximin" << std::endl;
+    } else {
+        std::cout << "[CMBE] Interval query is not supported" << std::endl;
+        std::cout << "[CMBE] Stop" << std::endl;
+        return;
+    }
+    std::cout << "[CMBE] Query vars: ";
+    std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+
+    // Number of variables
+    size_t num_vars = nvar();
+
+    // Create constrained minfill ordering
+    std::vector<size_t> elim_order;
+    elim_order = constrained_order2(m_query);
+    std::cout << "[CMBE] Elimination order: ";
+    std::copy(elim_order.begin(), elim_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[CMBE] Induced width: " << m_width << std::endl;
+    std::cout << "[CMBE] MB ibound: " << m_ibound << std::endl;
+
+    // Initialize the variable types
+    std::vector<bool> var_types(num_vars, false);
+    for (size_t i = 0; i < m_query.size(); ++i) {
+        var_types[m_query[i]] = true; // mark as MAP variable
+    }
+
+    // Initialize the buckets
+    std::vector<bool> used(num_vars, false);
+    std::vector<bucket> buckets(num_vars);
+    for (size_t i = 0; i < elim_order.size(); ++i) {
+        size_t v = elim_order[i];
+        buckets[i].set_variable(v);
+        for (size_t j = 0; j < m_factors.size(); ++j) {
+            interval& f = m_factors[j];
+            int ch = f.get_child();
+            if (used[ch] == true) {
+                continue;
+            } else {
+                // check if the current interval factor contains the bucket var
+                if (f.vars().contains(var(v))) {
+                    used[ch] = true;
+                    buckets[i].add_potential(f.to_potential());
+                }
+            }
+        }
+    }
+
+    if (m_verbose > 0) {
+        std::cout << "[DEBUG] Bucket structure:" << std::endl;
+        for (size_t i = 0; i < buckets.size(); ++ i) {
+            std::cout << "Bucket [" << buckets[i].get_variable() << "]" << std::endl;
+            std::vector<potential>& pots = buckets[i].potentials(); 
+            for (size_t j = 0; j < pots.size(); ++j) {
+                std::cout << pots[j] << std::endl;
+            } 
+        }
+    }
+
+    // Eliminate the variables
+    std::vector<potential> scalars;
+    for (size_t i = 0; i < num_vars; ++i) {
+        size_t v = elim_order[i];
+        variable vx = var(v);
+        std::string vtype = (var_types[v] ? "MAX" : "SUM");
+        std::cout << "[CMBE] Eliminating " << vtype << " variable: " << v << std::endl;
+
+        // Partition the bucket into mini-buckets
+        std::vector<potential> partition = buckets[i].create_partition(m_ibound);
+        std::cout << "  - created " << partition.size() << " mini-buckets" << std::endl;
+        bool first = true;
+        for (size_t j = 0; j < partition.size(); ++j) {
+
+            // Combine the potentials in the mini-bucket and eliminate the variable
+            potential& result = partition[j];
+            if (m_verbose > 0) {
+                std::cout << "[DEBUG] Mini-bucket:" << std::endl;
+                std::cout << result << std::endl;
+            }
+
+            if (var_types[v] == true) { // MAX variable
+                result.max(vx);
+            } else { // SUM variable
+                if (first) {
+                    result.sum(vx);
+                    first = false;
+                } else {
+                    result.max(vx);
+                }
+            }
+
+            if (m_verbose > 0) {
+                std::cout << "[DEBUG] Result before pruning:" << std::endl;
+                std::cout << result << std::endl;
+            }
+
+            // Remove dominated vertices
+            if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+                result.maximize();
+            } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+                result.minimize();
+            }
+
+            if (m_verbose > 0) {
+                std::cout << "[DEBUG] Result after pruning:" << std::endl;
+                std::cout << result << std::endl;
+            }
+
+            // Place new potential in the appropriate bucket
+            if (result.isscalar()) {
+                scalars.push_back(result);
+            } else {
+                // Find the closest bucket that contains a variable in the potential's scope
+                for (size_t j = i + 1; j < num_vars; ++j) {
+                    int y = buckets[j].get_variable();
+                    variable vy = var(y);
+                    if (result.vars().contains(vy)) {
+                        buckets[j].add_potential(result);
+                        break;
+                    }
+                }
+            }
+        } // done mini-buckets
+    } // done elimination
+
+    // After elimination, combine all scalars
+    potential r(1.0);
+    for (size_t i = 0; i < scalars.size(); ++i) {
+        r.multiply(scalars[i]);
+    }
+    
+    // Prune dominated scalars
+    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        r.maximize();
+    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        r.minimize();
+    }
+
+    // Check for singleton
+    if (r.p().size() > 1) {
+        std::cout << "[CMBE] WARNING: more than one final scalars detected: " << r.p().size() << std::endl; 
+    }
+
+    // Get the best score
+    m_best_score = r.p()[0][0];
+
+    // Compute the MAP assignment
+    std::map<size_t, size_t> config;
+    for (size_t i = num_vars - 1; i >= 0; --i) {
+        size_t v = elim_order[i];
+        if (var_types[v] == false) {
+            break; // stop at the first SUM variable
+        }
+
+        std::cout << "[CMBE] Processing MAX variable: " << v << std::endl;
+        variable vx = var(v);
+        potential result(1.0);
+        std::vector<potential>& pots = buckets[i].potentials();
+        std::cout << "  - potentials in bucket: " << pots.size() << std::endl; 
+        for (size_t j = 0; j < pots.size(); ++j) {
+            potential temp = pots[j];
+            std::cout << "Before substitution:" << std::endl;
+            std::cout << temp << std::endl;
+            temp.substitute(config);
+            std::cout << "After substitiution:" << std::endl;
+            std::cout << temp << std::endl;
+            result.multiply(temp);
+        }
+
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Combined potential (before pruning):" << std::endl;
+            std::cout << result << std::endl;
+        }
+
+        // if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+        //     result.maximize();
+        // } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+        //     result.minimize();
+        // }
+
+        // if (m_verbose > 0) {
+        //     std::cout << "[DEBUG] Combined potential (after pruning):" << std::endl;
+        //     std::cout << result << std::endl;
+
+        // }
+
+        size_t val = result.argmax();
+        config[v] = val;
+        std::cout << "[CMBE] Argmax for variable " << v << " is " << val << std::endl;
+    }
+
+    // Assemble the solution
+    m_best_config.resize(m_query.size());
+    for (size_t i = 0; i < m_query.size(); ++i) {
+        m_best_config[i] = config[m_query[i]];
+    }
+
+    std::cout << "[CMBE] Best solution: ";
+    std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[CMBE] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[CMBE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+}
+
 /// Brute force search with exact CVE based evaluation (exact)
 void mmap2u::brute_force2() {
 
@@ -1111,6 +1324,8 @@ void mmap2u::run() {
         simulated_annealing2();
     } else if (m_search_method.compare("cve") == 0) { // credal variable elimination 
         variable_elimination2();
+    } else if (m_search_method.compare("cmbe") == 0) { // credal mini-buckets 
+        mini_buckets2();
     } else if (m_search_method.compare("naive") == 0) { // brute force search
         brute_force2();
     }

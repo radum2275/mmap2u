@@ -105,7 +105,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , StopIter,FlipProb,InitMethod,InitTemp,Alpha,MaxFlips,SearchMethod,Threshold,Verbose,Seed,TabooSize,CacheSize,QueryType,Scorer,TimeLimit );
+	MER_ENUM( Property , StopIter,FlipProb,InitMethod,InitTemp,Alpha,MaxFlips,SearchMethod,Threshold,Verbose,Seed,TabooSize,CacheSize,QueryType,Scorer,TimeLimit,IBound );
 
 
 	// Setting properties (directly or through property string):
@@ -130,7 +130,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("StopIter=10,FlipProb=0.2,InitTemp=100,Alpha=0.2,MaxFlips=100,InitMethod=rand,SearchMethod=hc,Threshold=1e-06,Verbose=1,Seed=0,TabooSize=100,CacheSize=100,QueryType=maximin,Scorer=l2u,TimeLimit=-1");
+			set_properties("StopIter=10,FlipProb=0.2,InitTemp=100,Alpha=0.2,MaxFlips=100,InitMethod=rand,SearchMethod=hc,Threshold=1e-06,Verbose=1,Seed=0,TabooSize=100,CacheSize=100,QueryType=maximin,Scorer=l2u,TimeLimit=-1,IBound=2");
 			return;
 		}
 		m_verbose = 1;
@@ -189,6 +189,9 @@ public:
 			case Property::TimeLimit:
 				m_time_limit = atof(asgn[1].c_str());
 				break;
+			case Property::IBound:
+				m_ibound = atoi(asgn[1].c_str());
+				break;
 			default:
 				break;
 			}
@@ -235,6 +238,11 @@ protected:
 	/// \brief Variable Elimination (exact)
 	///
 	void variable_elimination2();
+
+	///
+	/// @brief Mini-Buckets approximation
+	///
+	void mini_buckets2();
 
 	///
 	/// @brief Brute-force Search (exact)
@@ -316,6 +324,7 @@ protected:
 	loopy2u* m_scorer;								///< Scorer
 	std::vector<findex> m_aux_fid;					///< List of auxiliary factor indices
 	std::vector<vindex> m_aux_vid;					///< List of auxiliary variable indices
+	int m_ibound;									///< Mini-buckets ibound
 };
 
 } // namespace

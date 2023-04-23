@@ -38,7 +38,7 @@ Merlin::Merlin() {
 	m_task = MERLIN_TASK_MAR;
 	m_algorithm = MERLIN_ALGO_L2U;
 	m_scorer = "l2u";
-	m_ibound = 4;
+	m_ibound = 2;
 	m_iterations = 10;
 	m_time_limit = -1;
 	m_samples = 100;
@@ -585,6 +585,29 @@ int Merlin::run() {
 					<< "QueryType=" << m_query_type << ","
 					<< "CacheSize=" << m_cache_size << ","
 					<< "TimeLimit=" << m_time_limit << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.set_query(m_query);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MMAP_CMBE) {
+				merlin::mmap2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "StopIter=" << m_iterations << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitMethod=" << m_init_method << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "SearchMethod=cmbe,"
+					<< "Scorer=" << m_scorer << ","
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);

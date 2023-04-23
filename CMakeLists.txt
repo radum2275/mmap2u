@@ -18,6 +18,7 @@ add_executable(loopy
     src/bn2cn.cpp
     src/directed_graph.cpp
     src/interval.cpp
+    src/bucket.cpp
     src/graph.cpp
     src/generator.cpp
     src/ipe2u.cpp

@@ -462,6 +462,15 @@ protected:
 };
 
 
+inline bool compare_potentials_asc(const potential& a, const potential& b) {
+	return (a.nvar() < b.nvar());
+}
+
+inline bool compare_potentials_desc(const potential& a, const potential& b) {
+	return (a.nvar() > b.nvar());
+}
+
+
 } // namespace
 
 #endif /* IBM_MMAP2U_POTENTIAL_H_ */
