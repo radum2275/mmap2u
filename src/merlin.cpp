@@ -664,6 +664,7 @@ int Merlin::run() {
 				<< "Extras=" << m_num_extras << ","
 				<< "Evid=" << m_num_evid;
 			s.set_properties(oss.str());
+			s.set_input_filename(m_filename);
 			s.run();
 		}
 

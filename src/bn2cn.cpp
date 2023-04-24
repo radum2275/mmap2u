@@ -45,6 +45,35 @@ void bn2cn::run() {
 	// Initialize the algorithm
 	init();
 
+	// Check if all variables are bi-valued
+	bool bivalued = true;
+	for (size_t i = 0; i < nvar(); ++i) {
+		if (m_dims[i] != 2) {
+			bivalued = false;
+			break;
+		}
+	}
+
+	// Update the factors so that they all have two values per variable
+	if (!bivalued) {
+		for (size_t i = 0; i < m_factors.size(); ++i) {
+			interval& f = m_factors[i];
+			variable_set vs;
+			for (variable_set::const_iterator v = f.vars().begin(); v != f.vars().end(); ++v) {
+				vs |= variable(v->label(), 2);
+			}
+
+			interval nf(vs);
+			nf.set_child(f.get_child());
+			nf.fill_random_bayes();
+			f = nf;
+		}
+
+		for (size_t i = 0; i < m_dims.size(); ++i) {
+			m_dims[i] = 2;
+		}
+	}
+	
 	// Convert the factor values into intervals
 	std::cout << "[BN2CN] Converting the factor values to intervals ..." << std::endl;
 	for (size_t i = 0; i < m_factors.size(); ++i) {
