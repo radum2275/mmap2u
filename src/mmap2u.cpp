@@ -752,16 +752,17 @@ void mmap2u::simulated_annealing2() {
                 best_score = current_score;
                 num_sols++;
 
-                std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")" << "] after " << flip << " flips: ";
+                std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")" << "] after " << flip << " flips and T " << T << ": ";
                 std::copy(best_config.begin(), best_config.end(), 
                     std::ostream_iterator<size_t>(std::cout, " "));
                 std::cout << std::endl;
             }
 
             // Adjust the temperature
-            if (flip % 100 == 0) {
-                T *= m_alpha;
-            }
+            T *= m_alpha;
+            // if (flip % 100 == 0) {
+            //     T *= m_alpha;
+            // }
 
             // Prune cache table if full
             while (cache.size() > m_cache_size) {
