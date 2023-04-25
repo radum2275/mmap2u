@@ -1196,10 +1196,15 @@ void mmap2u::mini_buckets2() {
         m_best_config[i] = config[m_query[i]];
     }
 
+    // Compute the L2U score of this configuration (using the augmented network)
+    init_scorer();
+    double config_score = score(m_best_config);
+
     std::cout << "[CMBE] Best solution: ";
     std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
-    std::cout << "[CMBE] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[CMBE] Best MB score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[CMBE] Best score: " << config_score << " (" << std::log10(config_score) << ")" << std::endl;
     std::cout << "[CMBE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
 }
 
