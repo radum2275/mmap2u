@@ -470,7 +470,7 @@ void mmap2u::hill_climbing2() {
     std::cout << "[HC] Solutions found: " << num_sols << std::endl;
     std::cout << "[HC] Total flips: " << total_flips << std::endl;
     std::cout << "[HC] Total hits: " << total_hits << std::endl;
-    std::cout << "[HC] Timeout: " << (timeout ? "yes" : "no");
+    std::cout << "[HC] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 
     // Save best solution (and score)
     m_best_config = best_config;
@@ -1026,19 +1026,33 @@ void mmap2u::variable_elimination2() {
             size_t val = result.argmax();
             config[v] = val;
             std::cout << "[CVE] Argmax for variable " << v << " is " << val << std::endl;
+
+            // Check for timeout
+            if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
+                std::cout << "  - TIMELIMT" << std::endl;
+                timeout = true;
+                break;
+            }
         }
 
-        // Assemble the solution
-        m_best_config.resize(m_query.size());
-        for (size_t i = 0; i < m_query.size(); ++i) {
-            m_best_config[i] = config[m_query[i]];
-        }
+        if (!timeout) {
+            // Assemble the solution
+            m_best_config.resize(m_query.size());
+            for (size_t i = 0; i < m_query.size(); ++i) {
+                m_best_config[i] = config[m_query[i]];
+            }
 
-        std::cout << "[CVE] Best solution: ";
-        std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
-        std::cout << std::endl;
-        std::cout << "[CVE] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
-        std::cout << "[CVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+            std::cout << "[CVE] Best solution: ";
+            std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+            std::cout << std::endl;
+            std::cout << "[CVE] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+            std::cout << "[CVE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+            std::cout << "[CVE] Timeout: no" << std::endl;
+        } else {
+            std::cout << "[CVE] Timeout: yes" << std::endl;
+        }
+    } else {
+        std::cout << "[CVE] Timeout: yes" << std::endl;
     }
 }
 
@@ -1255,24 +1269,38 @@ void mmap2u::mini_buckets2() {
             size_t val = result.argmax();
             config[v] = val;
             std::cout << "[CMBE] Argmax for variable " << v << " is " << val << std::endl;
+
+            // Check for timeout
+            if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
+                std::cout << "  - TIMELIMT" << std::endl;
+                timeout = true;
+                break;
+            }
         }
 
-        // Assemble the solution
-        m_best_config.resize(m_query.size());
-        for (size_t i = 0; i < m_query.size(); ++i) {
-            m_best_config[i] = config[m_query[i]];
+        if (!timeout) {
+            // Assemble the solution
+            m_best_config.resize(m_query.size());
+            for (size_t i = 0; i < m_query.size(); ++i) {
+                m_best_config[i] = config[m_query[i]];
+            }
+
+            // Compute the L2U score of this configuration (using the augmented network)
+            init_scorer();
+            double config_score = score(m_best_config);
+
+            std::cout << "[CMBE] Best solution: ";
+            std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+            std::cout << std::endl;
+            std::cout << "[CMBE] Best MB score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+            std::cout << "[CMBE] Best score: " << config_score << " (" << std::log10(config_score) << ")" << std::endl;
+            std::cout << "[CMBE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+            std::cout << "[CMBE] Timeout: no" << std::endl;
+        } else {
+            std::cout << "[CMBE] Timeout: yes" << std::endl;
         }
-
-        // Compute the L2U score of this configuration (using the augmented network)
-        init_scorer();
-        double config_score = score(m_best_config);
-
-        std::cout << "[CMBE] Best solution: ";
-        std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
-        std::cout << std::endl;
-        std::cout << "[CMBE] Best MB score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
-        std::cout << "[CMBE] Best score: " << config_score << " (" << std::log10(config_score) << ")" << std::endl;
-        std::cout << "[CMBE] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    } else {
+        std::cout << "[CMBE] Timeout: yes" << std::endl;
     }
 }
 
