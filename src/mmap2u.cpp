@@ -1241,11 +1241,15 @@ void mmap2u::mini_buckets2() {
             std::cout << "  - potentials in bucket: " << pots.size() << std::endl; 
             for (size_t j = 0; j < pots.size(); ++j) {
                 potential temp = pots[j];
-                std::cout << "Before substitution:" << std::endl;
-                std::cout << temp << std::endl;
+                if (m_verbose > 0) {
+                    std::cout << "Before substitution:" << std::endl;
+                    std::cout << temp << std::endl;
+                }
                 temp.substitute(config);
-                std::cout << "After substitiution:" << std::endl;
-                std::cout << temp << std::endl;
+                if (m_verbose > 0) {
+                    std::cout << "After substitiution:" << std::endl;
+                    std::cout << temp << std::endl;
+                }
                 result.multiply(temp);
             }
 
