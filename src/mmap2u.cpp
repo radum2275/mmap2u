@@ -1141,6 +1141,8 @@ void mmap2u::mini_buckets2() {
         bool first = true;
         for (size_t j = 0; j < partition.size(); ++j) {
 
+            std::cout << "  - processing mini-bucket: " << j << std::endl;
+
             // Combine the potentials in the mini-bucket and eliminate the variable
             potential& result = partition[j];
             if (m_verbose > 0) {
@@ -1171,6 +1173,8 @@ void mmap2u::mini_buckets2() {
                 result.minimize();
             }
 
+            std::cout << "  - generated potential size: " << result.size() << std::endl;
+            
             if (m_verbose > 0) {
                 std::cout << "[DEBUG] Result after pruning:" << std::endl;
                 std::cout << result << std::endl;

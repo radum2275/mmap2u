@@ -420,6 +420,13 @@ public:
 		return q_.at(i);
 	};
 
+
+	/// @brief Get the size of the potential
+	/// @return the number of elements in the potential
+	size_t size() const {
+		return p_.size();
+	}
+
 	///
 	/// \brief Rewrite table elements (safe)
 	///
