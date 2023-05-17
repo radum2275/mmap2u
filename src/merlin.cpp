@@ -614,7 +614,7 @@ int Merlin::run() {
 				s.set_query(m_query);
 				s.run();
 				s.write_solution(std::cout, m_outputFormat); 
-			} else if (m_algorithm == MERLIN_ALGO_MMAP_NAIVE) {
+			} else if (m_algorithm == MERLIN_ALGO_MMAP_DFS) {
 				merlin::mmap2u s(m_gmo);
 				std::ostringstream oss;
 				oss << "StopIter=" << m_iterations << ","

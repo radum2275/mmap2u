@@ -175,8 +175,8 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MMAP_CVE;
 			} else if (alg.compare("cmbe") == 0) {
 				opt->algorithm = MERLIN_ALGO_MMAP_CMBE;
-			} else if (alg.compare("naive") == 0) {
-				opt->algorithm = MERLIN_ALGO_MMAP_NAIVE;
+			} else if (alg.compare("dfs") == 0) {
+				opt->algorithm = MERLIN_ALGO_MMAP_DFS;
 			} else if (alg.compare("bn2cn") == 0) {
 				opt->algorithm = MERLIN_ALGO_CONVERT;
 			} else if (alg.compare("generator") == 0) {

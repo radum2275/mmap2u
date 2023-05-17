@@ -90,7 +90,7 @@
 #define MERLIN_ALGO_MMAP_SA     1008        ///< Simulated Annealing for MMAP
 #define MERLIN_ALGO_MMAP_GLS    1009        ///< Guided Local Search for MMAP
 #define MERLIN_ALGO_MMAP_CVE    1010        ///< Credal Variable Elimination for MMAP
-#define MERLIN_ALGO_MMAP_NAIVE  1011        ///< Naive brute-force approach for exact CMMAP
+#define MERLIN_ALGO_MMAP_DFS    1011        ///< Naive brute-force approach for exact CMMAP
 #define MERLIN_ALGO_MMAP_CMBE   1012        ///< Credal Mini-Buckets for MMAP
 
 
