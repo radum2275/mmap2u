@@ -113,7 +113,9 @@ void loopy2u::init() {
 		std::map<size_t, size_t>::iterator ei = m_evidence.begin();
 		for (; ei != m_evidence.end(); ++ei) {
 			size_t x = ei->first, xi = ei->second;
-			std::cout << " x" << x << "=" << xi;
+			if (m_verbose > 0) {
+				std::cout << " x" << x << "=" << xi;
+			}
 			variable p = var(x);
 			variable dummy(d++, 1);
 			message m(p, dummy);
@@ -124,7 +126,9 @@ void loopy2u::init() {
 			size_t mi = m_messages.size() - 1; // get the index of the last message
 			m_outgoing[x].push_back(mi);
 		}
-		std::cout << std::endl;
+		if (m_verbose > 0) {
+			std::cout << std::endl;
+		}
 	} else {
 		if (m_verbose > 0) {
 			std::cout << "[L2U] Evidence: none" << std::endl;
@@ -200,11 +204,13 @@ void loopy2u::update_beliefs() {
 	for (size_t x = 0; x < nvar(); ++x) {
 		variable_set vs(var(x));
 		interval bel(vs);
-		try { // evidence variable
+		if (m_evidence.find(x) != m_evidence.end()) { // evidence variable
+		// try { // evidence variable
 			size_t k = m_evidence.at(x);
 			bel[k] = interval::value(1.0, 1.0);
 			bel[1 - k] = interval::value(0.0, 0.0);
-		} catch(std::out_of_range e) { // non-evidence variable
+		// } catch(std::out_of_range e) { // non-evidence variable
+		} else { // non-evidence variable
 			interval::value Lx = m_lambda[x].get(0);
 			interval::value Px = m_pi[x].get(0);
 			double lb = 1.0 / (1.0 + (1.0 / Px.first - 1.0) * (1.0 / Lx.first));

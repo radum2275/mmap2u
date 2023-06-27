@@ -25,6 +25,7 @@
 #include "loopy2u.h"
 #include "ipe2u.h"
 #include "cve2u.h"
+#include "cve2u_mar.h"
 #include "bn2cn.h"
 #include "mmap2u.h"
 #include "generator.h"
@@ -444,6 +445,11 @@ int Merlin::run() {
 			if (m_outputFormat == MERLIN_OUTPUT_JSON) {
 				m_outputFile += ".json";
 			}
+
+			// Switch to CVE2U for MAR if required
+			if (m_algorithm == MERLIN_ALGO_CVE2U) {
+				m_algorithm = MERLIN_ALGO_CVE2U_MAR;
+			}
 		} else if (m_task == MERLIN_TASK_MMAP) {
 			if (m_outputFile.empty()) {
 				size_t found = m_filename.find_last_of("/");
@@ -501,6 +507,15 @@ int Merlin::run() {
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
+				s.run();
+			} else if (m_algorithm == MERLIN_ALGO_CVE2U_MAR) {
+				merlin::cve2u_mar s(m_gmo);
+				std::ostringstream oss;
+				oss << "Verbose=" << m_verbose << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.set_query(m_query);
 				s.run();
 			} else if (m_algorithm == MERLIN_ALGO_MMAP_HILL) {
 				merlin::mmap2u s(m_gmo);
