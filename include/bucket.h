@@ -31,6 +31,7 @@
 
 namespace merlin {
 
+
 ///
 /// @brief A bucket structure used by Credal Variable Elimination for P(e)
 ///
@@ -50,6 +51,8 @@ public:
     std::vector<potential>& potentials() {
         return m_potentials;
     }
+
+    std::vector<potential> create_partition(int ibound);
 
 protected:
     int m_variable;

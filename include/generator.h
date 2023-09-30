@@ -150,6 +150,12 @@ public:
 	///
 	void init();
 
+	/// @brief Set the input instance filename
+	/// @param filename name of the file
+	void set_input_filename(std::string filename) {
+		m_input_filename = filename;
+	}
+
 protected:
     bool make_random();
     bool make_grid();
@@ -179,7 +185,9 @@ protected:
 	size_t m_num_samples;				///< Number of sample queries to generate
 	size_t m_num_extras;				///< Number of extra LCN statements to generate
 	size_t m_num_evid;					///< Number of evidence variables in LCN
-	
+
+	std::string m_input_filename;		///< Input instance filename (if any)	
+	size_t m_query_perc;				///< Percentage of query vars
 };
 
 } // end namespace

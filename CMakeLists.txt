@@ -18,11 +18,13 @@ add_executable(loopy
     src/bn2cn.cpp
     src/directed_graph.cpp
     src/interval.cpp
+    src/bucket.cpp
     src/graph.cpp
     src/generator.cpp
     src/ipe2u.cpp
     src/loopy2u.cpp
     src/cve2u.cpp
+    src/cve2u_mar.cpp
     src/merlin.cpp
     src/program_options.cpp
     src/utils.cpp
@@ -43,6 +45,7 @@ add_executable(loopy
     include/ipe2u.h
     include/loopy2u.h
     include/cve2u.h
+    include/cve2u_mar.h
     include/merlin.h
     include/mmap2u.h
     include/program_options.h

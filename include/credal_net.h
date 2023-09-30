@@ -157,6 +157,7 @@ public:
 		std::vector<std::vector<variable> > cliques(ncliques);
 		std::vector<variable_set> sets(ncliques);
 		for (size_t i = 0; i < ncliques; i++) {
+			size_t child_var = i; // current CPT's child var
 			is >> csize;
 			cliques[i].reserve(csize);
 			for (size_t j = 0; j < csize; j++) {
@@ -164,6 +165,17 @@ public:
 				variable V(v, dims[v]);
 				cliques[i].push_back(V);
 				sets[i] |= V;
+			}
+
+			// Ensure that current variable is last in scope (Bayes, Credal nets)
+			if (cliques[i].back().label() != child_var) {
+				size_t m = cliques[i].size();
+				for (size_t ii = 0; ii < cliques[i].size(); ++ii) {
+					if (cliques[i][ii].label() == i) {
+						std::swap(cliques[i][ii], cliques[i][m - 1]);
+						break;
+					}
+				}
 			}
 		}
 

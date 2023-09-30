@@ -49,6 +49,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("scorer,S", po::value<std::string>(), "scorer (required): l2u or cve2u")
 			("task,t", po::value<std::string>(), "inference task (use PR, MAR, MAP, MMAP)")
 			("time-limit,l", po::value<int>(), "time limit in seconds")
+			("ibound,i", po::value<int>(), "mini-buckets ibound")
 			("seed,s", po::value<size_t>(), "seed for the random number generator")
 			("verbose,v", po::value<int>(), "specify verbosity level")
 			("debug,d", "enable debug mode")
@@ -90,6 +91,11 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 		// parse verbosity level
 		if (vm.count("verbose")) {
 			opt->verbose = vm["verbose"].as<int>();
+		}
+
+		// parse the ibound
+		if (vm.count("ibound")) {
+			opt->ibound = vm["ibound"].as<int>();
 		}
 
 		// parse convergence threshold
@@ -167,8 +173,10 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MMAP_SA;
 			} else if (alg.compare("cve") == 0) {
 				opt->algorithm = MERLIN_ALGO_MMAP_CVE;
-			} else if (alg.compare("naive") == 0) {
-				opt->algorithm = MERLIN_ALGO_MMAP_NAIVE;
+			} else if (alg.compare("cmbe") == 0) {
+				opt->algorithm = MERLIN_ALGO_MMAP_CMBE;
+			} else if (alg.compare("dfs") == 0) {
+				opt->algorithm = MERLIN_ALGO_MMAP_DFS;
 			} else if (alg.compare("bn2cn") == 0) {
 				opt->algorithm = MERLIN_ALGO_CONVERT;
 			} else if (alg.compare("generator") == 0) {

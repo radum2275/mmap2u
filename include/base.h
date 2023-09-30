@@ -83,6 +83,7 @@
 #define MERLIN_ALGO_IPE2U       1001        ///< Iterated Partial Evaluation 2U
 #define MERLIN_ALGO_SV2U        1002        ///< Structural Variational 2U
 #define MERLIN_ALGO_CVE2U       1003        ///< Credal Variable Elimination 2U
+#define MERLIN_ALGO_CVE2U_MAR   1033        ///< CVE for marginals
 #define MERLIN_ALGO_CONVERT     1004        ///< Convert to interval credal net
 #define MERLIN_ALGO_GENERATOR   1005        ///< Random problem generator
 #define MERLIN_ALGO_MMAP_HILL   1006        ///< Stochastic Hill-Climbing for MMAP
@@ -90,7 +91,9 @@
 #define MERLIN_ALGO_MMAP_SA     1008        ///< Simulated Annealing for MMAP
 #define MERLIN_ALGO_MMAP_GLS    1009        ///< Guided Local Search for MMAP
 #define MERLIN_ALGO_MMAP_CVE    1010        ///< Credal Variable Elimination for MMAP
-#define MERLIN_ALGO_MMAP_NAIVE  1011        ///< Naive brute-force approach for exact CMMAP
+#define MERLIN_ALGO_MMAP_DFS    1011        ///< Naive brute-force approach for exact CMMAP
+#define MERLIN_ALGO_MMAP_CMBE   1012        ///< Credal Mini-Buckets for MMAP
+
 
 ///
 /// Probabilistic inference tasks.

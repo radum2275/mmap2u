@@ -247,9 +247,52 @@ public:
     }
 
     ///
+    /// \brief Remove dominated factors by max (p-component, q-component)
+    ///
+    void maximize2() {
+		assert(p_.size() == q_.size());
+        size_t num_elems = p_.size();
+		std::vector<std::pair<factor, factor> > cleaned, phi;
+		for (size_t i = 0; i < num_elems; ++i) {
+			phi.push_back(std::make_pair(p_[i], q_[i]));
+		}
+
+        for (size_t i = 0; i < num_elems; ++i) {
+            bool found_maximal = false;
+            for (size_t j = 0; j < num_elems; ++j) {
+                if (i != j && phi[j].first > phi[i].first && phi[j].second < phi[i].second) {
+                    found_maximal = true;
+                    break;
+                }
+            }
+
+            if (!found_maximal) {
+                bool found = false;
+                for (size_t j = 0; j < cleaned.size(); ++j) {
+                    if (phi[i].first == cleaned[j].first && phi[i].second == cleaned[j].second) {
+                        found = true;
+                    }
+                }
+
+                if (!found) {
+                    cleaned.push_back(phi[i]);
+                }
+            }
+        }
+
+        // replace the potential's factors with the maximal ones
+		p_.clear();
+		q_.clear();
+		for (size_t i = 0; i < cleaned.size(); ++i) {
+			p_.push_back(cleaned[i].first);
+			q_.push_back(cleaned[i].second);
+		}
+    }
+
+    ///
     /// \brief Remove dominated factors by min (p-component)
     ///
-    void minimize() {
+    void minimize() {		
         std::vector<factor> cleaned;
         for (size_t i = 0; i < p_.size(); ++i) {
             bool found_minimal = false;
@@ -277,6 +320,49 @@ public:
         // replace the potential's factors with the minimal ones
         p_ = cleaned;
     }
+
+    ///
+    /// \brief Remove dominated factors by min (p-component, q-component)
+    ///
+    void minimize2() {
+		assert(p_.size() == q_.size());
+        size_t num_elems = p_.size();
+		std::vector<std::pair<factor, factor> > cleaned, phi;
+		for (size_t i = 0; i < num_elems; ++i) {
+			phi.push_back(std::make_pair(p_[i], q_[i]));
+		}
+
+       for (size_t i = 0; i < num_elems; ++i) {
+            bool found_minimal = false;
+            for (size_t j = 0; j < num_elems; ++j) {
+                if (i != j && phi[j].first < phi[i].first && phi[j].second > phi[i].second) {
+                    found_minimal = true;
+                    break;
+                }
+            }
+
+            if (!found_minimal) {
+                bool found = false;
+                for (size_t j = 0; j < cleaned.size(); ++j) {
+                    if (phi[i].first == cleaned[j].first && phi[i].second == cleaned[j].second) {
+                        found = true;
+                    }
+                }
+
+                if (!found) {
+                    cleaned.push_back(phi[i]);
+                }
+            }
+        }
+
+        // replace the potential's factors with the maximal ones
+		p_.clear();
+		q_.clear();
+		for (size_t i = 0; i < cleaned.size(); ++i) {
+			p_.push_back(cleaned[i].first);
+			q_.push_back(cleaned[i].second);
+		}
+     }
 
     // Combination and marginalization operations (in place)
 
@@ -311,6 +397,27 @@ public:
     }
 
     ///
+    /// \brief Eliminate a variable by summation
+    ///
+    void sum2(variable v) {
+        v_ /= v;
+        std::vector<factor> temp1, temp2;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor t = p_[i].sum(variable_set(v));
+            temp1.push_back(t);
+        }
+
+        for (size_t i = 0; i < q_.size(); ++i) {
+            factor t = q_[i].sum(variable_set(v));
+            temp2.push_back(t);
+        }
+
+        // Replace with the new marginalized factors
+        p_ = temp1;
+		q_ = temp2;
+    }
+
+    ///
     /// \brief Combine two potentials by multiplication
     ///
     void multiply(const potential& B) {
@@ -324,6 +431,28 @@ public:
 
         // Replace with the new combined factors
         p_ = temp;
+    }
+
+    ///
+    /// \brief Combine two potentials by multiplication
+    ///
+    void multiply2(const potential& B) {
+        v_ |= B.vars(); // update the potential scope
+        std::vector<factor> temp1, temp2;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            for (size_t j = 0; j < B.p_.size(); ++j) {
+                temp1.push_back(p_[i]*B.p_[j]);
+            }
+        }
+		for (size_t i = 0; i < q_.size(); ++i) {
+			for (size_t j = 0; j < B.q_.size(); ++j) {
+				temp2.push_back(q_[i]*B.q_[j]);
+			}
+		}
+
+        // Replace with the new combined factors
+        p_ = temp1;
+		q_ = temp2;
     }
 
     /// @brief Project the potential on a variable configuration (in place)
@@ -420,6 +549,13 @@ public:
 		return q_.at(i);
 	};
 
+
+	/// @brief Get the size of the potential
+	/// @return the number of elements in the potential
+	size_t size() const {
+		return p_.size();
+	}
+
 	///
 	/// \brief Rewrite table elements (safe)
 	///
@@ -445,10 +581,16 @@ public:
 	///		content of the factor received as input.
 	///
 	friend std::ostream& operator<<(std::ostream& out, const potential& f) {
-		out << "Potential over " << f.variables() << " is" << std::endl;
+		out << "Potential over " << f.variables() << " is:" << std::endl;
+		out << "- P components:" << std::endl;
 		for (size_t j = 0; j < f.p_.size(); j++) {
 			out << "  p" << j << ": " << f.p_[j] << std::endl;
 		}
+		out << "- Q components:" << std::endl;
+		for (size_t j = 0; j < f.q_.size(); j++) {
+			out << "  q" << j << ": " << f.q_[j] << std::endl;
+		}
+
 		return out;
 	};
 
@@ -460,6 +602,15 @@ protected:
     std::vector<factor> q_;             ///< List of factors (the q-component)
 
 };
+
+
+inline bool compare_potentials_asc(const potential& a, const potential& b) {
+	return (a.nvar() < b.nvar());
+}
+
+inline bool compare_potentials_desc(const potential& a, const potential& b) {
+	return (a.nvar() > b.nvar());
+}
 
 
 } // namespace

@@ -36,6 +36,7 @@ void generator::init() {
 	std::cout << "[GEN] KSize: " << m_ksize << std::endl;
 	std::cout << "[GEN] Percent: " << m_kpercent << std::endl;
 	rand_seed(m_seed);
+	m_query_perc = 0;
 
 	// Calculate total initialization time
 	double elapsed = (timeSystem() - m_start_time);
@@ -55,11 +56,12 @@ void generator::run() {
 	std::cout << "[GEN] Generating " << m_num_instances << " instances ..." << std::endl;
 	for (size_t i = 0; i < m_num_instances; ) {
 		cleanup();
-		std::ostringstream oss;
-		oss << m_graph_type << "_n" << m_num_nodes << "_p" << m_num_parents << "_i" << i << ".uai";
-		std::string file_name = oss.str();
-		std::cout << "[GEN] Instance: " << file_name << std::endl;
 		if (m_graph_type.compare("random") == 0) {
+			std::ostringstream oss;
+			oss << m_graph_type << "_n" << m_num_nodes << "_p" << m_num_parents << "_i" << i << ".uai";
+			std::string file_name = oss.str();
+			std::cout << "[GEN] Instance: " << file_name << std::endl;
+
 			if (make_random()) {
 				std::ofstream os(file_name.c_str());
 				write_solution(os, MERLIN_OUTPUT_UAI);
@@ -70,20 +72,33 @@ void generator::run() {
 				continue;
 			}
 		} else if (m_graph_type.compare("grid") == 0) {
+			std::ostringstream oss;
+			oss << m_graph_type << "_n" << m_num_nodes << "_p" << 2 << "_i" << i << ".uai";
+			std::string file_name = oss.str();
+			std::cout << "[GEN] Instance: " << file_name << std::endl;
+
 			make_grid();
 			std::ofstream os(file_name.c_str());
 			write_solution(os, MERLIN_OUTPUT_UAI);
 			os.close();
 			++i;
-
-
 		} else if (m_graph_type.compare("ktree") == 0) {
+			std::ostringstream oss;
+			oss << m_graph_type << "_n" << m_num_nodes << "_k" << m_ksize << "_i" << i << ".uai";
+			std::string file_name = oss.str();
+			std::cout << "[GEN] Instance: " << file_name << std::endl;
+
 			make_ktree();
 			std::ofstream os(file_name.c_str());
 			write_solution(os, MERLIN_OUTPUT_UAI);
 			os.close();
 			++i;
 		} else if (m_graph_type.compare("random_lcn") == 0) {
+			std::ostringstream oss;
+			oss << m_graph_type << "_n" << m_num_nodes << "_p" << m_num_parents << "_i" << i << ".uai";
+			std::string file_name = oss.str();
+			std::cout << "[GEN] Instance: " << file_name << std::endl;
+
 			if (make_random_lcn3()) {
 				std::ofstream os(file_name.c_str());
 				write_solution(os, MERLIN_OUTPUT_UAI);
@@ -93,6 +108,19 @@ void generator::run() {
 				std::cout << "[GEN] disconnected!" << std::endl;
 				continue;
 			}
+		} else if (m_graph_type.compare("instance") == 0) {
+			// Generating random queries for a given instance
+			std::string file_name = m_input_filename;
+			std::cout << "[GEN] random queries for instance: " << file_name << std::endl;
+			std::ifstream is(file_name);
+			read(is);
+
+			size_t num_vars = nvar();
+			m_query_perc = m_num_query;
+			size_t num_query = (size_t) (num_vars) * (m_num_query / 100.0); // percentage of query vars
+			m_num_query = num_query;
+			m_num_nodes = num_vars;
+			++i;
 		}
 
 		// Generate the sample MAP queries
@@ -108,37 +136,78 @@ void generator::run() {
 			}
 
 			// Save the query MAP variables in a file
-			std::ostringstream oss2;
-			oss2 << m_graph_type << "_n" << m_num_nodes << "_p" << m_num_parents << "_i" << i-1 << ".Q" << query.size() << ".s" << s << ".query";
-			std::string query_file_name = oss2.str();
-			std::ofstream os2(query_file_name.c_str());
-			os2 << query.size();
-			for (std::set<size_t>::iterator si = query.begin(); si != query.end(); ++si) {
-				os2 << " " << *si;
-			}
-			os2 << std::endl;
-			os2.close();
+			if (m_graph_type.compare("instance") == 0) {
+				std::ostringstream oss2;
+				std::string file_name = m_input_filename;
+				file_name.erase(file_name.size() - 4); // drop the .uai extension
+				oss2 << file_name << ".Q" << m_query_perc << ".s" << s << ".query";
+				std::string query_file_name = oss2.str();
+				std::ofstream os2(query_file_name.c_str());
+				os2 << query.size();
+				for (std::set<size_t>::iterator si = query.begin(); si != query.end(); ++si) {
+					os2 << " " << *si;
+				}
+				os2 << std::endl;
+				os2.close();
 
-			if (m_graph_type.compare("random_lcn") == 0) {
-				std::set<size_t> evid;
-				for (size_t e = 0; e < m_num_evid;) {
-					size_t v = randi2(m_num_nodes);
-					if (query.find(v) == query.end() & evid.find(v) == evid.end()) {
-						evid.insert(v);
-						++e;
+			} else {
+				
+				if (m_graph_type.compare("random") == 0) {
+					std::ostringstream oss2;
+					oss2 << m_graph_type << "_n" << m_num_nodes << "_p" << m_num_parents << "_i" << i-1 << ".Q" << query.size() << ".s" << s << ".query";
+					std::string query_file_name = oss2.str();
+					std::ofstream os2(query_file_name.c_str());
+					os2 << query.size();
+					for (std::set<size_t>::iterator si = query.begin(); si != query.end(); ++si) {
+						os2 << " " << *si;
 					}
+					os2 << std::endl;
+					os2.close();
+				} else if (m_graph_type.compare("grid") == 0) {
+					std::ostringstream oss2;
+					oss2 << m_graph_type << "_n" << m_num_nodes << "_p" << 2 << "_i" << i-1 << ".Q" << query.size() << ".s" << s << ".query";
+					std::string query_file_name = oss2.str();
+					std::ofstream os2(query_file_name.c_str());
+					os2 << query.size();
+					for (std::set<size_t>::iterator si = query.begin(); si != query.end(); ++si) {
+						os2 << " " << *si;
+					}
+					os2 << std::endl;
+					os2.close();
+				} else if (m_graph_type.compare("ktree") == 0) {
+					std::ostringstream oss2;
+					oss2 << m_graph_type << "_n" << m_num_nodes << "_k" << m_ksize << "_i" << i-1 << ".Q" << query.size() << ".s" << s << ".query";
+					std::string query_file_name = oss2.str();
+					std::ofstream os2(query_file_name.c_str());
+					os2 << query.size();
+					for (std::set<size_t>::iterator si = query.begin(); si != query.end(); ++si) {
+						os2 << " " << *si;
+					}
+					os2 << std::endl;
+					os2.close();
 				}
 
-				std::ostringstream oss3;
-				oss3 << m_graph_type << "_n" << m_num_nodes << "_p" << m_num_parents << "_i" << i-1 << ".E" << evid.size() << ".s" << s << ".evid";
-				std::string evid_file_name = oss3.str();
-				std::ofstream os3(evid_file_name.c_str());
-				os3 << evid.size();
-				for (std::set<size_t>::iterator si = evid.begin(); si != evid.end(); ++si) {
-					os3 << " " << *si << " 1";
+				if (m_graph_type.compare("random_lcn") == 0) {
+					std::set<size_t> evid;
+					for (size_t e = 0; e < m_num_evid;) {
+						size_t v = randi2(m_num_nodes);
+						if (query.find(v) == query.end() & evid.find(v) == evid.end()) {
+							evid.insert(v);
+							++e;
+						}
+					}
+
+					std::ostringstream oss3;
+					oss3 << m_graph_type << "_n" << m_num_nodes << "_p" << m_num_parents << "_i" << i-1 << ".E" << evid.size() << ".s" << s << ".evid";
+					std::string evid_file_name = oss3.str();
+					std::ofstream os3(evid_file_name.c_str());
+					os3 << evid.size();
+					for (std::set<size_t>::iterator si = evid.begin(); si != evid.end(); ++si) {
+						os3 << " " << *si << " 1";
+					}
+					os3 << std::endl;
+					os3.close();
 				}
-				os3 << std::endl;
-				os3.close();
 			}
 		}
 	}
