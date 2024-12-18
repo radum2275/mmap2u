@@ -29,6 +29,7 @@ add_executable(loopy
     src/program_options.cpp
     src/utils.cpp
     src/mmap2u.cpp
+    src/map2u.cpp
     include/algorithm.h
     include/base.h
     include/bayes_net.h
@@ -48,6 +49,7 @@ add_executable(loopy
     include/cve2u_mar.h
     include/merlin.h
     include/mmap2u.h
+    include/map2u.h
     include/program_options.h
     include/set.h
     include/utils.h
@@ -56,7 +58,7 @@ add_executable(loopy
     include/vector.h    
 )
 
-set(LINK_LIBS dl ${Boost_LIBRARIES})
+set(LINK_LIBS ${Boost_LIBRARIES})
 
 target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${LINK_LIBS})
 

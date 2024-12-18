@@ -411,6 +411,24 @@ void map2u::bnb() {
     std::cout << "[BNB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 }
 
+// AND/OR Branch and Bound search
+void map2u::aobb() {
+
+    bool timeout = false;
+    size_t num_sols = 0;
+
+    std::cout << "[AOBB] Running AND/OR Branch and Bound search ..." << std::endl;
+
+    std::cout << "[BNB] Finished search" << std::endl;
+    std::cout << "[BNB] Best solution: ";
+    std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[BNB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[BNB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[BNB] Solutions found: " << num_sols << std::endl;
+    std::cout << "[BNB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
+}
+
 // Run solver
 void map2u::run() {
 
