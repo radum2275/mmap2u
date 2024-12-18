@@ -94,6 +94,13 @@
 #define MERLIN_ALGO_MMAP_DFS    1011        ///< Naive brute-force approach for exact CMMAP
 #define MERLIN_ALGO_MMAP_CMBE   1012        ///< Credal Mini-Buckets for MMAP
 
+#define MERLIN_ALGO_MAP_MBE     2001        ///< Credal Mini-Buckets for MAP
+#define MERLIN_ALGO_MAP_WMB     2002        ///< Credal Weighted Mini-Buckets for MAP
+#define MERLIN_ALGO_MAP_DFS     2003        ///< Depth-First Search for credal MAP
+#define MERLIN_ALGO_MAP_BNB     2004        ///< Branch and Bound with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_AOBB    2005        ///< AND/OR Branch and Bound with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_AOBF    2006        ///< AND/OR Best-First Search with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_BFS     2007        ///< Best-First Search with WMB heuristics for credal MAP
 
 ///
 /// Probabilistic inference tasks.
@@ -102,6 +109,7 @@
 #define MERLIN_TASK_CONV    30          ///< Convert/translate 
 #define MERLIN_TASK_MMAP    40          ///< Marginal MAP (given evidence)
 #define MERLIN_TASK_GEN     50          ///< Problem generator
+#define MERLIN_TASK_MAP     60          ///< MAP (given evidence)
 
 ///
 /// Credal MMAP type.
@@ -109,6 +117,13 @@
 #define MERLIN_MMAP_MAXIMIN     0
 #define MERLIN_MMAP_MAXIMAX     1
 #define MERLIN_MMAP_INTERVAL    2
+
+///
+/// Credal MAP type.
+///
+#define MERLIN_MAP_MAXIMIN     0
+#define MERLIN_MAP_MAXIMAX     1
+
 
 ///
 /// Input graphical models.

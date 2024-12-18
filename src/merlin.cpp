@@ -28,6 +28,7 @@
 #include "cve2u_mar.h"
 #include "bn2cn.h"
 #include "mmap2u.h"
+#include "map2u.h"
 #include "generator.h"
 
 #include <stdlib.h>
@@ -463,6 +464,19 @@ int Merlin::run() {
 			if (m_outputFormat == MERLIN_OUTPUT_JSON) {
 				m_outputFile += ".json";
 			}
+		} else if (m_task == MERLIN_TASK_MAP) {
+			if (m_outputFile.empty()) {
+				size_t found = m_filename.find_last_of("/");
+				std::string prob_name = (found != std::string::npos) ?
+						m_filename.substr(found + 1) : m_filename;
+				m_outputFile = "./" + prob_name;
+			}
+
+			// Set the output format
+			m_outputFile += ".MAP";
+			if (m_outputFormat == MERLIN_OUTPUT_JSON) {
+				m_outputFile += ".json";
+			}
 		} else if (m_task == MERLIN_TASK_CONV) {
 			assert(m_outputFile.empty() == false);
 		} else if (m_task == MERLIN_TASK_GEN) {
@@ -660,6 +674,90 @@ int Merlin::run() {
 				s.set_properties(oss.str());
 				s.run();
 				s.write_solution(out, MERLIN_OUTPUT_UAI);
+			} else if (m_algorithm == MERLIN_ALGO_MAP_MBE) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=mbe,"
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_WMB) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=wmb,"
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_DFS) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=dfs,"
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_BNB) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=bnb,"
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_AOBB) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=aobb,"
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_AOBF) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=aobf,"
+					<< "Threshold=" << m_threshold << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
 			}
 
 			out.close();
