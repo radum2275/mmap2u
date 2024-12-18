@@ -147,6 +147,8 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->task = MERLIN_TASK_CONV;
 			} else if (task.compare("GEN") == 0) {
 				opt->task = MERLIN_TASK_GEN;
+			} else if (task.compare("MAP") == 0) {
+				opt->task = MERLIN_TASK_MAP;
 			} else {
 				std::string err_msg("Inference task ");
 				err_msg += task + " is not supported.";
@@ -177,6 +179,18 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MMAP_CMBE;
 			} else if (alg.compare("dfs") == 0) {
 				opt->algorithm = MERLIN_ALGO_MMAP_DFS;
+			} else if (alg.compare("dfs_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_DFS;
+			} else if (alg.compare("bnb_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_BNB;
+			} else if (alg.compare("wmb_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_WMB;
+			} else if (alg.compare("mbe_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_MBE;
+			} else if (alg.compare("aobb_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_AOBB;
+			} else if (alg.compare("aobf_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_AOBF;
 			} else if (alg.compare("bn2cn") == 0) {
 				opt->algorithm = MERLIN_ALGO_CONVERT;
 			} else if (alg.compare("generator") == 0) {

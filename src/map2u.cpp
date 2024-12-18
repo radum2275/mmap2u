@@ -32,7 +32,17 @@ void map2u::init() {
 	std::cout << "[MAP] Random generator seed: " << m_seed << std::endl;
 	rand_seed(m_seed); // set the random number generator seed
 
-    // Init scorer for shc, ts, sa and gls
+    // Initialize the query variables (MAP variables)
+    m_query.clear();
+    for (size_t v = 0; v < nvar(); ++v) {
+        if (m_evidence.find(v) != m_evidence.end()) {
+            continue;
+        }
+
+        m_query.push_back(v);
+    }
+
+    // Precompile heuristics
     if ( (m_search_method.compare("bnb") == 0)
         || (m_search_method.compare("aobb") == 0)
         || (m_search_method.compare("bfs") == 0)
@@ -50,29 +60,84 @@ void map2u::precompile_heuristics() {
 // Depth-First Search
 void map2u::dfs() {
 
-    // Init the cache
-    std::map<std::string, double> cache;
-
     // Prologue
     std::cout << "[DFS] Running Depth-First Search for MAP" << std::endl;
     if (m_query_type == MERLIN_MMAP_MAXIMAX) {
         std::cout << "[DFS] Query type: maximax" << std::endl;
-    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-        std::cout << "[DFS] Query type: maximin" << std::endl;
     } else {
-        std::cout << "[DFS] Query type: interval" << std::endl;
+        std::cout << "[DFS] Query type: maximin" << std::endl;
     }
+    std::cout << "[DFS] Num MAP vars: " << m_query.size() << std::endl;
     std::cout << "[DFS] Query vars: ";
     std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
 
-    // Keep track of the overall best configuration
-    std::vector<size_t> best_config, current_config;
-    double best_score = -1.0, current_score = -1.0;
-    size_t total_flips = 0, total_hits = 0;
-    size_t num_sols = 0;
+    // Depth-first search
+    std::vector<int> best_config;
+    double best_score = -1.0;
     bool timeout = false;
+    size_t num_vars = m_query.size();
+    size_t num_sols = 0, num_nodes = 0;
 
+    // Enumerate all possible assignments of the MAP variables
+    std::vector<int> values(num_vars, 0);
+    values[num_vars - 1] = -1;
+    int i;
+    std::cout << "[DFS] Start search ...:" << std::endl;
+    while (true) {
+
+        // Enumerate "parent" variables.
+        for (i = num_vars - 1; i >= 0; --i) {
+            if (values[i] < 1) break;
+            values[i] = 0;
+        }
+
+        if (i < 0) break;	// done;
+        ++values[i];
+
+        // NOW: all MAP variables have a specific value combination.
+        num_nodes++;
+        std::map<size_t, size_t> config;
+        for (size_t j = 0; j < m_query.size(); ++j) {
+            config[m_query[j]] = values[j];
+        }
+
+        // Evaluate the current MAP assignment
+        double score = 1.0;
+        for (std::vector<interval>::iterator ci = m_factors.begin(); ci != m_factors.end(); ++ci) {
+            interval& f = *ci;
+            interval::value v = f.get_value(config);
+            if (m_query_type == MERLIN_MAP_MAXIMIN) {
+                score *= v.first;
+            } else {
+                score *= v.second;
+            }
+        }
+
+        if (score > best_score) {
+            best_score = score;
+            best_config = values;
+            num_sols++;
+
+            std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")]: ";
+            std::copy(best_config.begin(), best_config.end(), std::ostream_iterator<int>(std::cout, " "));
+            std::cout << std::endl;
+        }
+
+        // Check for timeout
+        double elapsed = (timeSystem() - m_start_time);
+        if (m_time_limit > 0 && elapsed > m_time_limit) {
+            std::cout << "  - TIMELIMT" << std::endl;
+            timeout = true;
+        }
+    }
+
+    // Assemble the solution
+    m_best_score = best_score;
+    m_best_config.resize(num_vars);
+    for (size_t i = 0; i < best_config.size(); ++i) {
+        m_best_config[i] = best_config[i];
+    }
 
     std::cout << "[DFS] Best solution: ";
     std::copy(best_config.begin(), best_config.end(), 
@@ -80,6 +145,7 @@ void map2u::dfs() {
     std::cout << std::endl << "[DFS] Best score: " << best_score << " (" << std::log10(best_score) << ")" << std::endl;
     std::cout << "[DFS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[DFS] Solutions found: " << num_sols << std::endl;
+    std::cout << "[DFS] Number of nodes: " << num_nodes << std::endl;
     std::cout << "[DFS] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 
     // Save best solution (and score)

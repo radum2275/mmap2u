@@ -219,7 +219,7 @@ protected:
 	std::string m_search_method;					///< Search method (dfs, bnb, aobb, bfs, aobf)
 	size_t m_verbose;								///< Verbosity level
 	size_t m_seed;									///< Random number generator seed
-	std::vector<size_t> m_best_config;				///< Best MAP config
+	std::vector<int> m_best_config;					///< Best MAP config
 	double m_best_score;							///< Score of the best MAP config
 	double m_threshold;								///< Threshold used for numerical precision
 	size_t m_query_type;							///< MAP type (maximin, maximax)

@@ -4,7 +4,7 @@
 namespace merlin {
 
 interval::value interval::get_value(std::map<size_t, size_t>& config) {
-    assert(config.size() == v_.size());
+    // assert(config.size() == v_.size());
     config_index idx(v_, true); // default big endian
     size_t i = idx.convert(config);
     assert(i >= 0 && i < t_.size());
@@ -12,7 +12,7 @@ interval::value interval::get_value(std::map<size_t, size_t>& config) {
 }
 
 void interval::set_value(std::map<size_t, size_t>& config, value val) {
-    assert(config.size() == v_.size());
+    // assert(config.size() == v_.size());
     config_index idx(v_, true); // default big endian
     size_t i = idx.convert(config);
     assert(i >= 0 && i < t_.size());
