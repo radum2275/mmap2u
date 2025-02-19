@@ -23,6 +23,8 @@
 #include "graph.h"
 #include "utils.h"
 
+#include <random>
+
 namespace merlin {
 
 const directed_edge directed_edge::NO_EDGE(-1, -1, 0);
@@ -114,7 +116,10 @@ my_set<directed_edge> directed_graph::find_loop_cutset() {
 				candidates.push_back(nodes[i].first);
 				i++;
 			}
-			std::random_shuffle(candidates.begin(), candidates.end());
+
+			// The random number generator that we want to use (Mersenne Twister)
+			std::mt19937 rng(42);
+			std::shuffle(candidates.begin(), candidates.end(), rng);
 			size_t u = candidates[0];
 
 			// Select randomly an outgoing edge

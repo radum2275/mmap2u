@@ -94,6 +94,8 @@ potential interval::to_potential() {
 			++ivals[i];
 
 			// NOW: all "parents configs" have a specific value combination.
+            // for each configuration, there are 2 extremes of the credal set
+            // enumerate all extreme points of the local convex sets (intervals)
             factor f(v_);
             for (size_t j = 0; j < parents_configs.size(); ++j) {
                 std::map<size_t, size_t> config = parents_configs[j];

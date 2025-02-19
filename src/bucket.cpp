@@ -21,6 +21,7 @@ std::vector<potential> bucket::create_partition(int ibound) {
             if (tmp.nvar() <= ibound) {
                 mb.multiply(pot);
                 found = true;
+                break; // found the mini-bucket
             }
         }
 

@@ -32,6 +32,8 @@
 #include "graph.h"
 #include "directed_graph.h"
 
+#include <random>
+#include <algorithm>
 namespace merlin {
 
 ///
@@ -1233,9 +1235,13 @@ protected:
 	variable_order_t order_random() const {
 		variable_order_t order;
 		order.resize(nvar());
-		for (size_t i = 0; i < nvar(); i++)
+		for (size_t i = 0; i < nvar(); i++) {
 			order[i] = var(i).label();		// build a list of all the variables
-		std::random_shuffle(order.begin(), order.end());// and randomly permute them
+		}
+
+		// The random number generator that we want to use (Mersenne Twister)
+		std::mt19937 rng(42);
+		std::shuffle(order.begin(), order.end(), rng);// and randomly permute them
 		return order;
 	}
 

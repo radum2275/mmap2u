@@ -157,34 +157,28 @@ void map2u::dfs() {
 void map2u::wmb() {
 
     // Initialize the solver
-    std::cout << "[WMB] Running Credal Weighted Mini-Buckets for MAP" << std::endl;
-    if (m_query_type == MERLIN_MMAP_MAXIMAX) {
-        std::cout << "[WMB] Query type: maximax" << std::endl;
-    } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-        std::cout << "[WMB] Query type: maximin" << std::endl;
+    std::cout << "[CWMB] Running Credal Weighted Mini-Buckets for MAP" << std::endl;
+    if (m_query_type == MERLIN_MAP_MAXIMIN) {
+        std::cout << "[CWMB] Query type: maximin MAP" << std::endl;
     } else {
-        std::cout << "[WMB] Interval query is not supported" << std::endl;
-        std::cout << "[WMB] Stop" << std::endl;
-        return;
+        std::cout << "[CWMB] Query type: maximax MAP" << std::endl;
     }
-    std::cout << "[CWMB] Query vars: ";
-    std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl;
 
     // Number of variables
     size_t num_vars = nvar();
 
-    // Create constrained minfill ordering
+    // Create the minfill elimination ordering
     std::vector<size_t> elim_order;
-    elim_order = constrained_order2(m_query);
-    std::cout << "[WMB] Elimination order: ";
+    elim_order = order2();
+    std::cout << "[CWMB] Elimination order: ";
     std::copy(elim_order.begin(), elim_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
-    std::cout << "[WMB] Induced width: " << m_width << std::endl;
-    std::cout << "[WMB] MB ibound: " << m_ibound << std::endl;
+    std::cout << "[CWMB] Induced width: " << m_width << std::endl;
+    std::cout << "[CWMB] MB ibound: " << m_ibound << std::endl;
+    std::cout << "[CWMB] Number of variables: " << num_vars << std::endl;
 
     // Initialize the buckets
-    std::cout << "[WMB] Initialize the buckets" << std::endl;
+    std::cout << "[CWMB] Initialize the buckets" << std::endl;
     std::vector<bool> used(num_vars, false);
     std::vector<bucket> buckets(num_vars);
     for (size_t i = 0; i < elim_order.size(); ++i) {
@@ -216,14 +210,14 @@ void map2u::wmb() {
         }
     }
 
-    // Eliminate the variables
+    // Eliminate the variables (following the elimination ordering)
     std::vector<potential> scalars;
     bool timeout = false;
     for (size_t i = 0; i < num_vars; ++i) {
         size_t v = elim_order[i];
         variable vx = var(v);
         std::string vtype = "MAX";
-        std::cout << "[WMB] Eliminating " << vtype << " variable: " << v << std::endl;
+        std::cout << "[CWMB] Eliminating " << vtype << " variable: " << v << std::endl;
 
         // Partition the bucket into mini-buckets
         std::vector<potential> partition = buckets[i].create_partition(m_ibound);
@@ -248,9 +242,9 @@ void map2u::wmb() {
             }
 
             // Remove dominated vertices
-            if (m_query_type == MERLIN_MMAP_MAXIMAX) {
+            if (m_query_type == MERLIN_MAP_MAXIMAX) {
                 result.maximize();
-            } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
+            } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
                 result.minimize();
             }
 
@@ -289,88 +283,101 @@ void map2u::wmb() {
         }
     } // done elimination
 
-    if (!timeout) {
-        // After elimination, combine all scalars
-        potential r(1.0);
-        for (size_t i = 0; i < scalars.size(); ++i) {
-            r.multiply(scalars[i]);
-        }
-        
-        // Prune dominated scalars
-        if (m_query_type == MERLIN_MMAP_MAXIMAX) {
-            r.maximize();
-        } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-            r.minimize();
-        }
-
-        // Check for singleton
-        if (r.p().size() > 1) {
-            std::cout << "[WMB] WARNING: more than one final scalars detected: " << r.p().size() << std::endl; 
-        }
-
-        // Get the best score
-        m_best_score = r.p()[0][0];
-
-        // Compute the MAP assignment
-        std::map<size_t, size_t> config;
-        for (size_t i = num_vars - 1; i >= 0; --i) {
-            size_t v = elim_order[i];
-
-            std::cout << "[WMB] Processing MAX variable: " << v << std::endl;
-            variable vx = var(v);
-            potential result(1.0);
-            std::vector<potential>& pots = buckets[i].potentials();
-            std::cout << "  - potentials in bucket: " << pots.size() << std::endl; 
-            for (size_t j = 0; j < pots.size(); ++j) {
-                potential temp = pots[j];
-                if (m_verbose > 0) {
-                    std::cout << "Before substitution:" << std::endl;
-                    std::cout << temp << std::endl;
-                }
-                temp.substitute(config);
-                if (m_verbose > 0) {
-                    std::cout << "After substitiution:" << std::endl;
-                    std::cout << temp << std::endl;
-                }
-                result.multiply(temp);
-            }
-
-            if (m_verbose > 0) {
-                std::cout << "[DEBUG] Combined potential (before pruning):" << std::endl;
-                std::cout << result << std::endl;
-            }
-
-            size_t val = result.argmax();
-            config[v] = val;
-            std::cout << "[WMB] Argmax for variable " << v << " is " << val << std::endl;
-
-            // Check for timeout
-            if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
-                std::cout << "  - TIMELIMT" << std::endl;
-                timeout = true;
-                break;
-            }
-        }
-
-        if (!timeout) {
-            // Assemble the solution
-            m_best_config.resize(m_query.size());
-            for (size_t i = 0; i < m_query.size(); ++i) {
-                m_best_config[i] = config[m_query[i]];
-            }
-
-            std::cout << "[WMB] Best solution: ";
-            std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
-            std::cout << std::endl;
-            std::cout << "[WMB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
-            std::cout << "[WMB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-            std::cout << "[WMB] Timeout: no" << std::endl;
-        } else {
-            std::cout << "[WMB] Timeout: yes" << std::endl;
-        }
-    } else {
-        std::cout << "[WMB] Timeout: yes" << std::endl;
+    if (timeout) {
+        std::cout << "[CWMB] Timeout: yes" << std::endl;
+        return;
     }
+
+    // After elimination, combine all scalars
+    potential r(1.0);
+    for (size_t i = 0; i < scalars.size(); ++i) {
+        r.multiply(scalars[i]);
+    }
+    
+    // Prune dominated scalars
+    if (m_query_type == MERLIN_MAP_MAXIMAX) {
+        r.maximize();
+    } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
+        r.minimize();
+    }
+
+    // Check for singleton
+    if (r.p().size() > 1) {
+        std::cout << "[WMB] WARNING: more than one final scalars detected: " << r.p().size() << std::endl; 
+    }
+
+    // Get the best score
+    m_best_score = r.p()[0][0];
+
+    // Compute the MAP assignment; going backwards in the ordering
+    std::map<size_t, size_t> config;
+    for (int i = num_vars - 1; i >= 0; --i) {
+        size_t v = elim_order[i];
+
+        std::cout << "[WMB] Processing MAX variable: " << v << std::endl;
+        variable vx = var(v);
+        potential result(1.0);
+        std::vector<potential>& pots = buckets[i].potentials();
+        std::cout << "  - potentials in bucket: " << pots.size() << std::endl; 
+        for (size_t j = 0; j < pots.size(); ++j) {
+            potential temp = pots[j];
+            if (m_verbose > 0) {
+                std::cout << "Before substitution:" << std::endl;
+                std::cout << temp << std::endl;
+            }
+            temp.substitute(config);
+            if (m_verbose > 0) {
+                std::cout << "After substitiution:" << std::endl;
+                std::cout << temp << std::endl;
+            }
+            result.multiply(temp);
+        }
+
+        if (m_verbose > 0) {
+            std::cout << "[DEBUG] Combined potential (before pruning):" << std::endl;
+            std::cout << result << std::endl;
+        }
+
+        size_t val = result.argmax();
+        config[v] = val;
+        std::cout << "[CWMB] Argmax for variable " << v << " is " << val << std::endl;
+
+        // Check for timeout
+        if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
+            std::cout << "  - TIMELIMT" << std::endl;
+            timeout = true;
+            break;
+        }
+    }
+
+    if (!timeout) {
+        // Assemble the solution
+        m_best_config.resize(m_query.size());
+        for (size_t i = 0; i < m_query.size(); ++i) {
+            m_best_config[i] = config[m_query[i]];
+        }
+
+        std::cout << "[CWMB] Best solution: ";
+        std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+        std::cout << std::endl;
+        std::cout << "[CWMB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+        std::cout << "[CWMB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+        std::cout << "[CWMB] Timeout: no" << std::endl;
+    } else {
+        std::cout << "[CWMB] Timeout: yes" << std::endl;
+    }
+}
+
+std::string map2u::to_string(variable_set &vars, std::map<size_t, size_t> &config) {
+    std::stringstream ss;
+    variable_set::const_iterator ci = vars.begin();
+    for (; ci != vars.end(); ++ci) {
+        size_t varx = *ci;
+        size_t val = config.at(varx);
+        ss << " " << varx << "=" << val; 
+    }
+
+    return ss.str();
 }
 
 /// Brute force search with exact CVE based evaluation (exact)
@@ -511,7 +518,10 @@ void map2u::run() {
         bnb();
     } else if (m_search_method.compare("aobb") == 0) { // AND/OR Branch and Bound Search
         aobb();
+    } else if (m_search_method.compare("wmb") == 0) { // Weighted Mini-Buckets
+        wmb();
     }
+    
 }
 
 // Write the solution to the output stream
