@@ -193,7 +193,7 @@ void map2u::wmb() {
                 // check if the current interval factor contains the bucket var
                 if (f.vars().contains(var(v))) {
                     used[ch] = true;
-                    buckets[i].add_potential(f.to_potential());
+                    buckets[i].add_potential(f.to_potential(false));
                 }
             }
         }

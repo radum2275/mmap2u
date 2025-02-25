@@ -70,7 +70,7 @@ public:
     /// @param s a real-valued scalar (default is 1.0)
     potential(value s) {
         p_.push_back(factor(s));
-        q_.push_back(factor(s));
+        // q_.push_back(factor(s));
     };
 
 	///

@@ -441,7 +441,7 @@ public:
 	///
 	/// \brief Build potential i.e., factors in extension
 	///
-	potential to_potential();
+	potential to_potential(bool has_q = true);
 
 	///
 	/// \brief Output operator (friend).

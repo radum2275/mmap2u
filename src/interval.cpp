@@ -19,7 +19,7 @@ void interval::set_value(std::map<size_t, size_t>& config, value val) {
     t_[i] = val;
 }
 
-potential interval::to_potential() {
+potential interval::to_potential(bool has_q) {
     potential pot;
 
     // Enumerate configurations of parents
@@ -45,10 +45,16 @@ potential interval::to_potential() {
         f1[0] = 1.0 - val.second;
         f1[1] = val.second;
 
+        // Create the p-component
         pot.add_p(f0);
-        pot.add_q(f0);
         pot.add_p(f1);
-        pot.add_q(f1);
+
+        // Create the q-component (if needed)
+        if (has_q) {
+            pot.add_q(f0);
+            pot.add_q(f1);
+        }
+
     } else { // parents
         
         // Generate all parents configs
@@ -107,8 +113,13 @@ potential interval::to_potential() {
                 f.set_value(config, 1.0 - prob);
 			}
 
+            // Create the p-component
             pot.add_p(f);
-            pot.add_q(f);
+
+            // Create the q-component
+            if (has_q) {
+                pot.add_q(f);
+            }
 		} // end while
     }
 
