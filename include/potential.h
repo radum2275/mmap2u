@@ -29,6 +29,8 @@
 
 
 #include <float.h>
+#include <random>
+#include <algorithm>
 
 #include "factor.h"
 
@@ -246,6 +248,205 @@ public:
         p_ = cleaned;
     }
 
+    ///
+    /// \brief Compute an e-covering (p-component)
+    /// \param eps the epsilon value for the covering (1+eps)
+    /// \param max the flag indicating maximization or minimization
+    ///
+    void covering(double eps = 0.1, bool max = true) {
+        std::vector<std::pair<factor, factor> > gamma;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor f = p_[i]; // copy
+            if (max == true) {
+                f.phi_max(eps); // transform the factor
+            } else {
+                f.phi_min(eps); // transform the factor
+            }
+
+            // Check if the transformed factor is already in covering
+            bool found = false;
+            for (size_t j = 0; j < gamma.size(); ++j) {
+                if (f == gamma[j].first) {
+                    bool found = true;
+                    break;
+                }
+            }
+
+            // Remove all dominated transformed factors from gamma
+            if (!found) {
+                std::vector<std::pair<factor, factor> > cleaned;
+                for (size_t j = 0; j < gamma.size(); ++j) {
+                    if (max == true) {
+                        if (f >= gamma[j].first) {
+                            continue;
+                        } else {
+                            cleaned.push_back(gamma[j]); // undominated
+                        }
+                    } else {
+                        if (f <= gamma[j].first) {
+                            continue;
+                        } else {
+                            cleaned.push_back(gamma[j]); // undominated
+                        }
+                    }
+                }
+
+                gamma.clear();
+                gamma = cleaned;
+                gamma.push_back(std::make_pair(f, p_[i]));
+                cleaned.clear();
+            }            
+        }
+
+        // replace the potential's factors with the covering
+        p_.clear();
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            p_.push_back(gamma[i].second);
+        }
+
+        gamma.clear();
+    }
+
+    ///
+    /// \brief Compute least upper bound (p-component)
+    /// \param b the maximum size of the vector
+    ///
+    void least_ub(size_t b = 1) {
+
+        std::vector<factor> gamma;
+        if (b == 1) { // special case
+            factor f(p_[0]); // copy first element of the p-component
+            for (size_t j = 0; j < f.numel(); ++j) {
+                value v = f[j];
+                for (size_t i = 0; i < p_.size(); ++i) {
+                    v = std::max(v, p_[i][j]);
+                }
+                f[j] = v;
+            }
+
+            gamma.push_back(f);
+        } else {
+            // The random number generator that we want to use (Mersenne Twister)
+            std::mt19937 rng(42);
+            gamma = p_; // make a copy
+            while (gamma.size() > b) {
+                size_t n = gamma.size();
+                std::uniform_int_distribution<int> idist(0, n - 1); //(inclusive, inclusive)
+                size_t i = (size_t) idist(rng);
+
+                factor& v = gamma[i];
+                value min_dist = infty(); // look for the min Manhattan distance
+                int min_cand = -1;
+                for (size_t j = 0; j < gamma.size(); ++j) {
+                    if (i != j) {
+                        factor& w = gamma[j];
+                        value dist = v.manhattan(w);
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            min_cand = j;
+                        }
+                    }                   
+                }
+
+                factor& w = gamma[min_cand];
+                factor u = v; // make a copy
+                for (size_t k = 0; k < u.numel(); ++k) {
+                    u[k] = std::max(u[k], w[k]);
+                }
+
+                // Erase the two elements v and w
+                if (i < min_cand) {
+                    gamma.erase(gamma.begin() + min_cand);
+                    gamma.erase(gamma.begin() + i);
+                } else {
+                    gamma.erase(gamma.begin() + i);
+                    gamma.erase(gamma.begin() + min_cand);
+                }
+
+                // Add the new element u to the vector
+                gamma.push_back(u);
+            }
+        }
+
+        // replace the potential's factors with the covering
+        p_.clear();
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            p_.push_back(gamma[i]);
+        }
+
+        gamma.clear();
+    }
+
+    ///
+    /// \brief Compute greatest lower bound (p-component)
+    /// \param b the maximum size of the vector
+    ///
+    void greatest_lb(size_t b = 1) {
+
+        std::vector<factor> gamma;
+        if (b == 1) { // special case
+            factor f(p_[0]); // copy first element of the p-component
+            for (size_t j = 0; j < f.numel(); ++j) {
+                value v = f[j];
+                for (size_t i = 0; i < p_.size(); ++i) {
+                    v = std::min(v, p_[i][j]);
+                }
+                f[j] = v;
+            }
+
+            gamma.push_back(f);
+        } else {
+            // The random number generator that we want to use (Mersenne Twister)
+            std::mt19937 rng(42);
+            gamma = p_; // make a copy
+            while (gamma.size() > b) {
+                size_t n = gamma.size();
+                std::uniform_int_distribution<int> idist(0, n - 1); //(inclusive, inclusive)
+                size_t i = (size_t) idist(rng);
+
+                factor& v = gamma[i];
+                value min_dist = infty(); // look for the min Manhattan distance
+                int min_cand = -1;
+                for (size_t j = 0; j < gamma.size(); ++j) {
+                    if (i != j) {
+                        factor& w = gamma[j];
+                        value dist = v.manhattan(w);
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            min_cand = j;
+                        }
+                    }                   
+                }
+
+                factor& w = gamma[min_cand];
+                factor u = v; // make a copy
+                for (size_t k = 0; k < u.numel(); ++k) {
+                    u[k] = std::min(u[k], w[k]);
+                }
+
+                // Erase the two elements v and w
+                if (i < min_cand) {
+                    gamma.erase(gamma.begin() + min_cand);
+                    gamma.erase(gamma.begin() + i);
+                } else {
+                    gamma.erase(gamma.begin() + i);
+                    gamma.erase(gamma.begin() + min_cand);
+                }
+
+                // Add the new element u to the vector
+                gamma.push_back(u);
+            }
+        }
+
+        // replace the potential's factors with the covering
+        p_.clear();
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            p_.push_back(gamma[i]);
+        }
+
+        gamma.clear();
+    }
+        
     ///
     /// \brief Remove dominated factors by max (p-component, q-component)
     ///

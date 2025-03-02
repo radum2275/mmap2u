@@ -211,6 +211,7 @@ void map2u::wmb() {
     }
 
     // Eliminate the variables (following the elimination ordering)
+    std::cout << "[CWMB] Begin variable elimination ..." << std::endl;
     std::vector<potential> scalars;
     bool timeout = false;
     for (size_t i = 0; i < num_vars; ++i) {
@@ -243,9 +244,12 @@ void map2u::wmb() {
 
             // Remove dominated vertices
             if (m_query_type == MERLIN_MAP_MAXIMAX) {
-                result.maximize();
+                // result.maximize();
+                // result.covering(0.3, true);
+                result.least_ub(4);
             } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
-                result.minimize();
+                // result.minimize();
+                result.covering(0.1, false);
             }
 
             std::cout << "  - generated potential size: " << result.size() << std::endl;
@@ -256,7 +260,7 @@ void map2u::wmb() {
             }
 
             // Place new potential in the appropriate bucket
-            if (result.isscalar()) {
+            if (result.nvar() == 0) { // i.e., scalar == empty scope
                 scalars.push_back(result);
             } else {
                 // Find the closest bucket that contains a variable in the potential's scope
@@ -283,6 +287,7 @@ void map2u::wmb() {
         }
     } // done elimination
 
+    std::cout << "[CWMB] Finished variable elimination." << std::endl;
     if (timeout) {
         std::cout << "[CWMB] Timeout: yes" << std::endl;
         return;
@@ -309,12 +314,14 @@ void map2u::wmb() {
     // Get the best score
     m_best_score = r.p()[0][0];
 
+    /*
+    std::cout << "[CWMB] Generating the MAP configuration (bottom-up) ..." << std::endl;
     // Compute the MAP assignment; going backwards in the ordering
     std::map<size_t, size_t> config;
     for (int i = num_vars - 1; i >= 0; --i) {
         size_t v = elim_order[i];
 
-        std::cout << "[WMB] Processing MAX variable: " << v << std::endl;
+        std::cout << "[CWMB] Processing MAX variable: " << v << std::endl;
         variable vx = var(v);
         potential result(1.0);
         std::vector<potential>& pots = buckets[i].potentials();
@@ -349,16 +356,18 @@ void map2u::wmb() {
             break;
         }
     }
-
+    std::cout << "[CWMB] Finished generating the MAP configuration." << std::endl;
+    */
     if (!timeout) {
         // Assemble the solution
         m_best_config.resize(m_query.size());
         for (size_t i = 0; i < m_query.size(); ++i) {
-            m_best_config[i] = config[m_query[i]];
+            // m_best_config[i] = config[m_query[i]];
+            m_best_config[i] = -1;
         }
 
         std::cout << "[CWMB] Best solution: ";
-        std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+        std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<int>(std::cout, " "));
         std::cout << std::endl;
         std::cout << "[CWMB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
         std::cout << "[CWMB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;

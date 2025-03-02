@@ -511,6 +511,24 @@ public:
 	}
 	;
 
+	///
+	/// \brief Phi log value transformation i.e., floor(log(v) / log(1+e)).
+	///
+	/// Set all table values to their phi log values. This is an in-place
+	/// trasformation.
+	///	\return the reference to the transformed factor.
+	///				
+	inline factor& phi_max(double eps) {
+		std::transform(t_.begin(), t_.end(), t_.begin(), unOpPhiMaxE(eps));
+		return *this;
+	}
+	;
+	inline factor& phi_min(double eps) {
+		std::transform(t_.begin(), t_.end(), t_.begin(), unOpPhiMinE(eps));
+		return *this;
+	}
+	;
+
 	// Functors defined for unary operations (transformations) to the factor table:
 
 	///
@@ -521,6 +539,7 @@ public:
 			return std::abs(a);
 		}
 	};
+
 
 	///
 	/// \brief Functor for exponential value transformation.
@@ -551,6 +570,31 @@ public:
 		;
 		value operator()(value a) {
 			return std::log(a) / l;
+		}
+	};
+
+	///
+	/// \brief Functor for log value transformation.
+	///
+	struct unOpPhiMaxE {
+		value e;
+		unOpPhiMaxE(value E) :
+				e(E) {
+		}
+		;
+		value operator()(value a) {
+			return std::ceil(std::log(a) / std::log(1.0 + e));
+		}
+	};
+
+	struct unOpPhiMinE {
+		value e;
+		unOpPhiMinE(value E) :
+				e(E) {
+		}
+		;
+		value operator()(value a) {
+			return std::floor(std::log(a) / std::log(1.0 + e));
 		}
 	};
 
@@ -1014,6 +1058,15 @@ public:
 	value sum() const {
 		return std::accumulate(t_.begin(), t_.end(), 0.0, std::plus<value>());
 	};
+
+	value manhattan(const factor& f) {
+		assert (t_.size() == f.t_.size()); // factors need to be the same size
+		value dist = 0;
+		for (size_t i = 0; i < t_.size(); ++i) {
+			dist += std::abs(t_[i] - f.t_[i]);
+		}
+		return dist;
+	}
 
 	///
 	/// Elimination by weighted summation.

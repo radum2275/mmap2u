@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
 
 	delete opt;
 
-	test_quickhull();
+	// test_quickhull();
 
 	return status;
 }
