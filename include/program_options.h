@@ -73,6 +73,8 @@ struct ProgramOptions {
 	size_t num_samples;				///< Number of sample queries to generate
 	size_t num_extras;				///< Number of extra LCN statements to generate
 	size_t num_evid;				///< Number of evidence variables in LCN
+	std::string potential_approx;	///< Potential approximation method: none, covering, lpub, gplb
+	size_t potential_size;			///< Maximum potential size (0 - no bounds)
 
 public:
 
@@ -95,7 +97,7 @@ inline ProgramOptions::ProgramOptions() :
 		iterations(10),
 		outputFormat(MERLIN_OUTPUT_UAI),
 		threshold(1e-06),
-		epsilon(0.0),
+		epsilon(0.1),
 		flip_probability(0.2),
 		init_method("rand"),
 		init_temp(100.0),
@@ -113,6 +115,8 @@ inline ProgramOptions::ProgramOptions() :
 		num_query(10),
 		num_samples(10),
 		num_extras(1),
-		num_evid(0) {};
+		num_evid(0),
+		potential_approx("none"),
+		potential_size(0) {};
 
 #endif /* IBM_MERLIN_PROGRAM_OPTIONS_H_ */

@@ -99,7 +99,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , SearchMethod,Threshold,Verbose,Seed,QueryType,TimeLimit,IBound );
+	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,Seed,QueryType,TimeLimit,IBound );
 
 
 	// Setting properties (directly or through property string):
@@ -124,7 +124,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("SearchMethod=bnb,Threshold=1e-06,Verbose=1,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2");
+			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2");
 			return;
 		}
 		m_verbose = 1;
@@ -135,8 +135,25 @@ public:
 			case Property::SearchMethod:
 				m_search_method = asgn[1]; // hc, ts, sa
 				break;
-			case Property::Threshold:
-				m_threshold = atof(asgn[1].c_str());
+			case Property::Epsilon:
+				m_epsilon = atof(asgn[1].c_str());
+				break;
+			case Property::PotentialApprox:
+				if (asgn[1].compare("none") == 0) {
+					m_potential_approx = MERLIN_POTENTIAL_APPROX_NONE;
+				} else if (asgn[1].compare("covering") == 0) {
+					m_potential_approx = MERLIN_POTENTIAL_APPROX_COVERING;
+				} else if (asgn[1].compare("lpub") == 0) {
+					m_potential_approx = MERLIN_POTENTIAL_APPROX_LEAST_UPBO;
+				} else if (asgn[1].compare("gplb") == 0) {
+					m_potential_approx = MERLIN_POTENTIAL_APPROX_GREATEST_LOBO;
+				} else {
+					std::cout << "Unsupported potential approximation scheme!" << std::endl;
+				}
+				break;
+			case Property::PotentialSize:
+				m_potential_size = atol(asgn[1].c_str());
+				break;
 			case Property::Verbose:
 				m_verbose = atol(asgn[1].c_str());
 				break;
@@ -145,9 +162,9 @@ public:
 				break;
 			case Property::QueryType:
 				if (asgn[1].compare("maximax") == 0) {
-					m_query_type = MERLIN_MMAP_MAXIMAX;
+					m_query_type = MERLIN_MAP_MAXIMAX;
 				} else if (asgn[1].compare("maximin") == 0) {
-					m_query_type = MERLIN_MMAP_MAXIMIN;
+					m_query_type = MERLIN_MAP_MAXIMIN;
 				} else {
 					std::cout << "Only maximin and maximax MAP queries are supported!" << std::endl;
 				}
@@ -225,6 +242,9 @@ protected:
 	size_t m_query_type;							///< MAP type (maximin, maximax)
 	double m_time_limit;							///< Time limit (default -1)
 	int m_ibound;									///< Mini-buckets ibound
+	double m_epsilon;								///< Epsilon value for e-covering
+	size_t m_potential_size;						///< Max potential size (0 - no bounds)
+	size_t m_potential_approx;						///< Potential approximation method (none, covering, lub, glb)
 };
 
 } // namespace

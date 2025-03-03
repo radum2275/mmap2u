@@ -235,6 +235,7 @@ void map2u::wmb() {
                 std::cout << result << std::endl;
             }
 
+            // Eliminate the variable (in-place)
             result.max(vx);
 
             if (m_verbose > 0) {
@@ -244,12 +245,21 @@ void map2u::wmb() {
 
             // Remove dominated vertices
             if (m_query_type == MERLIN_MAP_MAXIMAX) {
-                // result.maximize();
-                // result.covering(0.3, true);
-                result.least_ub(4);
+                if (m_potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
+                    result.maximize();
+                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
+                    result.covering(m_epsilon, true);
+                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
+                    result.least_ub(m_potential_size);
+                }
             } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
-                // result.minimize();
-                result.covering(0.1, false);
+                if (m_potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
+                    result.minimize();
+                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
+                    result.covering(m_epsilon, false);
+                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_GREATEST_LOBO) {
+                    result.greatest_lb(m_potential_size);
+                }
             }
 
             std::cout << "  - generated potential size: " << result.size() << std::endl;
@@ -299,7 +309,7 @@ void map2u::wmb() {
         r.multiply(scalars[i]);
     }
     
-    // Prune dominated scalars
+    // Prune dominated scalars (no need for approximation -- just scalars)
     if (m_query_type == MERLIN_MAP_MAXIMAX) {
         r.maximize();
     } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
@@ -314,7 +324,7 @@ void map2u::wmb() {
     // Get the best score
     m_best_score = r.p()[0][0];
 
-    /*
+    // /*
     std::cout << "[CWMB] Generating the MAP configuration (bottom-up) ..." << std::endl;
     // Compute the MAP assignment; going backwards in the ordering
     std::map<size_t, size_t> config;
@@ -357,13 +367,13 @@ void map2u::wmb() {
         }
     }
     std::cout << "[CWMB] Finished generating the MAP configuration." << std::endl;
-    */
+    // */
     if (!timeout) {
         // Assemble the solution
         m_best_config.resize(m_query.size());
         for (size_t i = 0; i < m_query.size(); ++i) {
-            // m_best_config[i] = config[m_query[i]];
-            m_best_config[i] = -1;
+            m_best_config[i] = config[m_query[i]];
+            // m_best_config[i] = -1;
         }
 
         std::cout << "[CWMB] Best solution: ";

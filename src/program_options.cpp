@@ -55,7 +55,9 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("debug,d", "enable debug mode")
 			("iterations,n", po::value<int>(), "number of iterations")
 			("threshold,T", po::value<double>(), "threshold for L2U convergence")
-			("epsilon", po::value<double>(), "epsilon for converting to an interval credal net")
+			("epsilon", po::value<double>(), "epsilon for converting to an interval credal net and epsilon-coverings")
+			("potential-approx", po::value<std::string>(), "potential approximation method (none, covering, lpub, gplb)")
+			("potential-size", po::value<size_t>(), "maximum potential size (0 - no bounds)")
 			("flip-proba", po::value<double>(), "random flip probability for MMAP")
 			("init-method", po::value<std::string>(), "initialization method for MMAP")
 			("output-format,O", po::value<std::string>(), "output file format (required)")
@@ -249,6 +251,16 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			opt->epsilon = vm["epsilon"].as<double>();
 		}
 
+		// parse potential approximation
+		if (vm.count("potential-approx")) {
+			opt->potential_approx = vm["potential-approx"].as<std::string>();
+		}
+
+		// parse potential size
+		if (vm.count("potential-size")) {
+			opt->potential_size = vm["potential-size"].as<size_t>();
+		}
+		
 		// parse random flip probability
 		if (vm.count("flip-proba")) {
 			opt->flip_probability = vm["flip-proba"].as<double>();

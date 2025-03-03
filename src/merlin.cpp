@@ -49,7 +49,7 @@ Merlin::Merlin() {
 	m_outputFormat = MERLIN_OUTPUT_UAI;
 	m_ioTime = 0;
 	m_threshold = 1e-06;
-	m_epsilon = 0.0;
+	m_epsilon = 0.1;
 	m_seed = 12345678;
 	m_flip_probability = 0.2;
 	m_init_method = "rand";
@@ -69,6 +69,8 @@ Merlin::Merlin() {
 	m_num_samples = 10;
 	m_num_extras = 1;
 	m_num_evid = 0;
+	m_potential_approx = "none";
+	m_potential_size = 0;
 }
 
 ///
@@ -279,6 +281,12 @@ void Merlin::set_num_extras(size_t e) {
 }
 void Merlin::set_num_evid(size_t e) {
 	m_num_evid = e;
+}
+void Merlin::set_potential_approx(std::string s) {
+	m_potential_approx = s;
+}
+void Merlin::set_potential_size(size_t n) {
+	m_potential_size = n;
 }
 
 ///
@@ -692,7 +700,9 @@ int Merlin::run() {
 				merlin::map2u s(m_gmo);
 				std::ostringstream oss;
 				oss << "SearchMethod=wmb,"
-					<< "Threshold=" << m_threshold << ","
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
 					<< "Verbose=" << m_verbose << ","
 					<< "QueryType=" << m_query_type << ","
 					<< "TimeLimit=" << m_time_limit << ","

@@ -79,6 +79,8 @@ protected:
 	size_t m_num_samples;				///< Number of sample queries to generate
 	size_t m_num_extras;				///< Number of extra LCN statements to generate
 	size_t m_num_evid;					///< Number of evidence variables in LCN
+	std::string m_potential_approx;		///< Potential approximation method (none, covering, lpub, gplb)
+	size_t m_potential_size;			///< Potential maximum size (0 - no bounds)
 
 private:
 	// Local members:
@@ -254,6 +256,8 @@ public:
 	void set_num_samples(size_t s);
 	void set_num_extras(size_t e);
 	void set_num_evid(size_t e);
+	void set_potential_approx(std::string s);
+	void set_potential_size(size_t n);
 
 	///
 	/// \brief Initialize the solver.

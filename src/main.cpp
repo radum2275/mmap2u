@@ -138,6 +138,8 @@ int main(int argc, char** argv) {
 	eng.set_num_samples(opt->num_samples);
 	eng.set_num_extras(opt->num_extras);
 	eng.set_num_evid(opt->num_evid);
+	eng.set_potential_approx(opt->potential_approx);
+	eng.set_potential_size(opt->potential_size);
 	
 	// Run the inference
 	eng.init();

@@ -124,6 +124,13 @@
 #define MERLIN_MAP_MAXIMIN     0
 #define MERLIN_MAP_MAXIMAX     1
 
+///
+/// Potential approximation methods.
+///
+#define MERLIN_POTENTIAL_APPROX_NONE            0   ///< No approximation
+#define MERLIN_POTENTIAL_APPROX_COVERING        1   ///< Epsilon covering
+#define MERLIN_POTENTIAL_APPROX_LEAST_UPBO      2   ///< Least Pareto Upper Bound
+#define MERLIN_POTENTIAL_APPROX_GREATEST_LOBO   3   ///< Greatest Pareto Lower Bound
 
 ///
 /// Input graphical models.
