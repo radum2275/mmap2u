@@ -94,7 +94,6 @@
 #define MERLIN_ALGO_MMAP_DFS    1011        ///< Naive brute-force approach for exact CMMAP
 #define MERLIN_ALGO_MMAP_CMBE   1012        ///< Credal Mini-Buckets for MMAP
 
-#define MERLIN_ALGO_MAP_MBE     2001        ///< Credal Mini-Buckets for MAP
 #define MERLIN_ALGO_MAP_WMB     2002        ///< Credal Weighted Mini-Buckets for MAP
 #define MERLIN_ALGO_MAP_DFS     2003        ///< Depth-First Search for credal MAP
 #define MERLIN_ALGO_MAP_BNB     2004        ///< Branch and Bound with WMB heuristics for credal MAP

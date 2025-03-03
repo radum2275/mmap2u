@@ -187,8 +187,6 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MAP_BNB;
 			} else if (alg.compare("wmb_map") == 0) {
 				opt->algorithm = MERLIN_ALGO_MAP_WMB;
-			} else if (alg.compare("mbe_map") == 0) {
-				opt->algorithm = MERLIN_ALGO_MAP_MBE;
 			} else if (alg.compare("aobb_map") == 0) {
 				opt->algorithm = MERLIN_ALGO_MAP_AOBB;
 			} else if (alg.compare("aobf_map") == 0) {
