@@ -795,6 +795,25 @@ public:
 		return out;
 	};
 
+    void approximate(size_t query_type, size_t potential_approx, size_t potential_size, double eps) {
+        if (query_type == MERLIN_MAP_MAXIMAX) {
+            if (potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
+                this->maximize();
+            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
+                this->covering(eps, true);
+            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
+                this->least_ub(potential_size);
+            }
+        } else if (query_type == MERLIN_MAP_MAXIMIN) {
+            if (potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
+                this->minimize();
+            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
+                this->covering(eps, false);
+            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_GREATEST_LOBO) {
+                this->greatest_lb(potential_size);
+            }
+        }
+    }
 
 protected:
 

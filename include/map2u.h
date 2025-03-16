@@ -99,7 +99,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,Seed,QueryType,TimeLimit,IBound );
+	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,Seed,QueryType,TimeLimit,IBound,InitPotentialApprox );
 
 
 	// Setting properties (directly or through property string):
@@ -133,7 +133,7 @@ public:
 			std::vector<std::string> asgn = merlin::split(strs[i], '=');
 			switch (Property(asgn[0].c_str())) {
 			case Property::SearchMethod:
-				m_search_method = asgn[1]; // hc, ts, sa
+				m_search_method = asgn[1]; // dfs, bb, aobb
 				break;
 			case Property::Epsilon:
 				m_epsilon = atof(asgn[1].c_str());

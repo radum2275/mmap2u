@@ -258,7 +258,7 @@ public:
 	void set_num_evid(size_t e);
 	void set_potential_approx(std::string s);
 	void set_potential_size(size_t n);
-
+	
 	///
 	/// \brief Initialize the solver.
 	///	\return *true* if succesful and *false* otherwise.

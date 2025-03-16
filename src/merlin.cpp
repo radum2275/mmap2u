@@ -682,20 +682,6 @@ int Merlin::run() {
 				s.set_properties(oss.str());
 				s.run();
 				s.write_solution(out, MERLIN_OUTPUT_UAI);
-			} else if (m_algorithm == MERLIN_ALGO_MAP_MBE) {
-				merlin::map2u s(m_gmo);
-				std::ostringstream oss;
-				oss << "SearchMethod=mbe,"
-					<< "Threshold=" << m_threshold << ","
-					<< "Verbose=" << m_verbose << ","
-					<< "QueryType=" << m_query_type << ","
-					<< "TimeLimit=" << m_time_limit << ","
-					<< "IBound=" << m_ibound << ","
-					<< "Seed=" << m_seed;
-				s.set_properties(oss.str());
-				s.set_evidence(m_evidence);
-				s.run();
-				s.write_solution(std::cout, m_outputFormat); 
 			} else if (m_algorithm == MERLIN_ALGO_MAP_WMB) {
 				merlin::map2u s(m_gmo);
 				std::ostringstream oss;

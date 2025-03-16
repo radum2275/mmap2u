@@ -193,7 +193,12 @@ void map2u::wmb() {
                 // check if the current interval factor contains the bucket var
                 if (f.vars().contains(var(v))) {
                     used[ch] = true;
-                    buckets[i].add_potential(f.to_potential(false));
+                    // buckets[i].add_potential(f.to_potential(false));
+
+                    potential p = f.to_potential(false);
+                    p.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+                    buckets[i].add_potential(p);
+
                 }
             }
         }
@@ -221,7 +226,7 @@ void map2u::wmb() {
         std::cout << "[CWMB] Eliminating " << vtype << " variable: " << v << std::endl;
 
         // Partition the bucket into mini-buckets
-        std::vector<potential> partition = buckets[i].create_partition(m_ibound);
+        std::vector<potential> partition = buckets[i].create_partition(m_ibound, m_query_type, m_potential_approx, m_potential_size, m_epsilon);
         std::cout << "  - created " << partition.size() << " mini-buckets" << std::endl;
         bool first = true;
         for (size_t j = 0; j < partition.size(); ++j) {
@@ -243,24 +248,8 @@ void map2u::wmb() {
                 std::cout << result << std::endl;
             }
 
-            // Remove dominated vertices
-            if (m_query_type == MERLIN_MAP_MAXIMAX) {
-                if (m_potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
-                    result.maximize();
-                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
-                    result.covering(m_epsilon, true);
-                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
-                    result.least_ub(m_potential_size);
-                }
-            } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
-                if (m_potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
-                    result.minimize();
-                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
-                    result.covering(m_epsilon, false);
-                } else if (m_potential_approx == MERLIN_POTENTIAL_APPROX_GREATEST_LOBO) {
-                    result.greatest_lb(m_potential_size);
-                }
-            }
+            // Remove dominated vertices or approximate the potential
+            result.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
 
             std::cout << "  - generated potential size: " << result.size() << std::endl;
             

@@ -54,6 +54,9 @@ public:
 
     std::vector<potential> create_partition(int ibound);
 
+    std::vector<potential> create_partition(int ibound, size_t query_type,
+        size_t potential_approx, size_t potential_size, double eps);
+
 protected:
     int m_variable;
     std::vector<potential> m_potentials;
