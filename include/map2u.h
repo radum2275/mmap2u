@@ -99,7 +99,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,Seed,QueryType,TimeLimit,IBound,InitPotentialApprox );
+	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,Seed,QueryType,TimeLimit,IBound,Iterations,DoMatch );
 
 
 	// Setting properties (directly or through property string):
@@ -124,7 +124,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2");
+			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2,Iterations=1,DoMatch=0");
 			return;
 		}
 		m_verbose = 1;
@@ -153,6 +153,12 @@ public:
 				break;
 			case Property::PotentialSize:
 				m_potential_size = atol(asgn[1].c_str());
+				break;
+			case Property::Iterations:
+				m_iterations = atol(asgn[1].c_str());
+				break;
+			case Property::DoMatch:
+				m_matching = atol(asgn[1].c_str());
 				break;
 			case Property::Verbose:
 				m_verbose = atol(asgn[1].c_str());
@@ -227,6 +233,18 @@ protected:
 	///
 	void precompile_heuristics();
 
+	///
+	/// \brief Moment-matching (max) in a mini-buckets partition
+	///
+	void moment_matching(variable vx, std::vector<potential>& partition, std::mt19937& rng);
+	
+	///
+	/// \brief Max marginals
+	///
+	factor maxmarginal(const factor& f, const variable_set& vs) {
+		return f.maxmarginal(vs);
+	}
+
 protected:
 	// Members:
 
@@ -245,6 +263,9 @@ protected:
 	double m_epsilon;								///< Epsilon value for e-covering
 	size_t m_potential_size;						///< Max potential size (0 - no bounds)
 	size_t m_potential_approx;						///< Potential approximation method (none, covering, lub, glb)
+	size_t m_iterations;							///< Number of iterations for moment-matching
+	bool m_matching;								///< Do moment matching
+
 };
 
 } // namespace

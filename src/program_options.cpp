@@ -77,6 +77,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("num-samples", po::value<size_t>(), "number of sample queries to generate")
 			("num-extras", po::value<size_t>(), "number of extra LCN statements to generate")
 			("num-evid", po::value<size_t>(), "number of extra LCN evidence sentences")
+			("moment-matching", po::value<size_t>(), "perform moment matching")
 			("help,h", "produces this help message");
 
 		po::variables_map vm;
@@ -228,6 +229,12 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 		// parse the number of iterations
 		if (vm.count("iterations")) {
 			opt->iterations = vm["iterations"].as<int>();
+		}
+		
+		// moment matching
+		if (vm.count("moment-matching")) {
+			size_t mm = vm["moment-matching"].as<size_t>();
+			opt->moment_matching = (mm == 0 ? false : true);
 		}
 
 		// parse the output format

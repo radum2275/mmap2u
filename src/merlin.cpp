@@ -71,6 +71,7 @@ Merlin::Merlin() {
 	m_num_evid = 0;
 	m_potential_approx = "none";
 	m_potential_size = 0;
+	m_moment_matching = false;
 }
 
 ///
@@ -287,6 +288,9 @@ void Merlin::set_potential_approx(std::string s) {
 }
 void Merlin::set_potential_size(size_t n) {
 	m_potential_size = n;
+}
+void Merlin::set_moment_matching(bool m) {
+	m_moment_matching = m;
 }
 
 ///
@@ -693,6 +697,8 @@ int Merlin::run() {
 					<< "QueryType=" << m_query_type << ","
 					<< "TimeLimit=" << m_time_limit << ","
 					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);

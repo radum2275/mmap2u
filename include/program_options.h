@@ -75,6 +75,7 @@ struct ProgramOptions {
 	size_t num_evid;				///< Number of evidence variables in LCN
 	std::string potential_approx;	///< Potential approximation method: none, covering, lpub, gplb
 	size_t potential_size;			///< Maximum potential size (0 - no bounds)
+	bool moment_matching;			///< Do moment matching
 
 public:
 
@@ -94,7 +95,7 @@ inline ProgramOptions::ProgramOptions() :
 		seed(12345678),
 		debug(false),
 		verbose(0),
-		iterations(10),
+		iterations(1),
 		outputFormat(MERLIN_OUTPUT_UAI),
 		threshold(1e-06),
 		epsilon(0.1),
@@ -117,6 +118,7 @@ inline ProgramOptions::ProgramOptions() :
 		num_extras(1),
 		num_evid(0),
 		potential_approx("none"),
-		potential_size(0) {};
+		potential_size(0),
+		moment_matching(false) {};
 
 #endif /* IBM_MERLIN_PROGRAM_OPTIONS_H_ */

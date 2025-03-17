@@ -563,7 +563,17 @@ public:
 			p_.push_back(cleaned[i].first);
 			q_.push_back(cleaned[i].second);
 		}
-     }
+    }
+
+    ///
+    /// \brief Select randomly a function (by index) in the potential
+    ///
+    size_t select(std::mt19937& rng) {
+        size_t n = p_.size();
+        std::uniform_int_distribution<int> idist(0, n - 1); //(inclusive, inclusive)
+        size_t i = (size_t) idist(rng);
+        return i;
+    }
 
     // Combination and marginalization operations (in place)
 
@@ -590,6 +600,51 @@ public:
         std::vector<factor> temp;
         for (size_t i = 0; i < p_.size(); ++i) {
             factor t = p_[i].sum(variable_set(v));
+            temp.push_back(t);
+        }
+
+        // Replace with the new marginalized factors
+        p_ = temp;
+    }
+
+    ///
+    /// \brief Eliminate a variable by maximization
+    ///
+    void elim_max(variable v) {
+        v_ /= v;
+        std::vector<factor> temp;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor t = p_[i].max(variable_set(v));
+            temp.push_back(t);
+        }
+
+        // Replace with the new marginalized factors
+        p_ = temp;
+    }
+
+    ///
+    /// \brief Eliminate a variable by summation
+    ///
+    void elim_sum(variable v) {
+        v_ /= v;
+        std::vector<factor> temp;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor t = p_[i].sum(variable_set(v));
+            temp.push_back(t);
+        }
+
+        // Replace with the new marginalized factors
+        p_ = temp;
+    }
+
+    ///
+    /// \brief Eliminate a variable by summation
+    ///
+    void elim_sum_power(variable v, value pow) {
+        v_ /= v;
+        std::vector<factor> temp;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor t = p_[i].sum_power(variable_set(v), pow);
             temp.push_back(t);
         }
 

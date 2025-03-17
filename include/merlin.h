@@ -81,7 +81,8 @@ protected:
 	size_t m_num_evid;					///< Number of evidence variables in LCN
 	std::string m_potential_approx;		///< Potential approximation method (none, covering, lpub, gplb)
 	size_t m_potential_size;			///< Potential maximum size (0 - no bounds)
-
+	bool m_moment_matching;				///< Do moment matching
+	
 private:
 	// Local members:
 
@@ -258,7 +259,7 @@ public:
 	void set_num_evid(size_t e);
 	void set_potential_approx(std::string s);
 	void set_potential_size(size_t n);
-	
+	void set_moment_matching(bool m);
 	///
 	/// \brief Initialize the solver.
 	///	\return *true* if succesful and *false* otherwise.
