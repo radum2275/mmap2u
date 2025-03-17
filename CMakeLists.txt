@@ -30,6 +30,8 @@ add_executable(loopy
     src/utils.cpp
     src/mmap2u.cpp
     src/map2u.cpp
+    src/bound_propagator.cpp
+    src/pseudotree.cpp
     include/algorithm.h
     include/base.h
     include/bayes_net.h
@@ -57,6 +59,9 @@ add_executable(loopy
     include/variable.h
     include/vector.h
     include/quickhull.h  
+    include/search_node.h
+    include/bound_propagator.h
+    include/pseudotree.h
 )
 
 set(LINK_LIBS ${Boost_LIBRARIES})

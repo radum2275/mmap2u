@@ -458,91 +458,258 @@ std::string map2u::to_string(variable_set &vars, std::map<size_t, size_t> &confi
     return ss.str();
 }
 
+std::unique_ptr<search_node> map2u::next_leaf() {
+
+	std::unique_ptr<search_node> node = std::move(next_node());
+	while (node != nullptr) {
+
+		// check for time limit violation
+		if (m_time_limit > 0 && timeSystem() - m_start_time > m_time_limit) {
+			throw SEARCH_TIMEOUT;
+		}
+
+		if (do_process(node.get())) { // initial processing
+			return node;
+		}
+		if (do_caching(node.get())) { // caching?
+			return node;
+		}
+		if (do_pruning(node.get())) { // pruning?
+			return node;
+		}
+		if (do_expand(node.get())) { // node expansion
+			return node;
+		}
+		node = std::move(next_node());
+	}
+
+	return nullptr;
+}
+
+std::unique_ptr<search_node> map2u::next_node() {
+	if (m_stack.size() > 0) {
+		std::unique_ptr<search_node> n = std::move(m_stack.top());
+		m_stack.pop();
+        return n;
+	} 
+    
+    return nullptr;
+}
+
+bool map2u::do_process(search_node* n) {
+	assert(n != NULL);
+	if (n->get_type() == NODE_AND) {
+		size_t var = n->get_variable();
+		size_t val = n->get_value();
+		m_assignment[var] = val; // record assignment
+
+	} else { // NODE_OR
+		// do nothing
+	}
+
+	return false; // default
+}
+
+bool map2u::do_caching(search_node* n) {
+    return false;
+}
+
+bool map2u::do_pruning(search_node* n) {
+    return false; 
+}
+
+bool map2u::do_expand(search_node* n) {
+	assert(n);
+	std::vector<std::unique_ptr<search_node>> expanded;
+
+	if (n->get_type() == NODE_AND) {  // AND node
+
+		// Update the heuristic
+		std::vector<int> assignment;
+		assignment.resize(m_assignment.size(), -1);
+		n->get_path_assignment(assignment);
+		size_t curr_var = n->get_variable();
+        m_heuristic->update(assignment);
+
+        // Generate the OR children of an AND node (if any)
+		if (generate_children(n, expanded)) {
+			return true; // no children
+        }
+
+        std::vector<std::unique_ptr<search_node>>::reverse_iterator it = expanded.rbegin();
+		for (; it != expanded.rend(); ++it) {
+			m_stack.push(std::move(*it));
+        }
+
+	} else if (n->get_type() == NODE_0R) {  // OR node
+
+        // Generate the AND children of an OR node (if any)
+		if (generate_children(n, expanded)) {
+			return true; // no children
+        }
+
+        std::vector<std::unique_ptr<search_node>>::reverse_iterator it = expanded.rbegin();
+		for (; it != expanded.rend(); ++it) {
+			m_stack.push(std::move(*it));
+		} // for loop
+
+	} // if over node type
+
+	return false; // default false    
+}
+
+// DONE: radu
+bool map2u::generate_children(search_node* n, std::vector<std::unique_ptr<search_node>>& chi) {
+    assert(n != nullptr);
+
+    // Expand an AND node
+    if (n->get_type() == NODE_AND) {
+        assert(n && n->get_type() == NODE_AND);
+
+        size_t var = n->get_variable();
+        pseudotree_node* ptnode = m_pseudotree->get_node(var);
+
+        // Increase AND node expansions
+        m_num_nodes.first += 1;
+
+        // Create new OR children (going in reverse due to reversal on stack)
+        std::vector<pseudotree_node*>::const_reverse_iterator it = ptnode->get_children().rbegin();
+        for (; it != ptnode->get_children().rend(); ++it) {
+
+            // Get the pseudotree child
+            int vChild = (*it)->get_variable();
+            
+            // Create the OR child
+            std::unique_ptr<search_node> c = std::make_unique<search_node>(vChild, -1, NODE_OR);
+          
+            // Compute and set heuristic estimate, includes child labels
+            heuristic(c);
+            c->set_depth(n->get_depth() + 1);
+            chi.push_back(std::move(c));
+
+        } // for loop over new OR children
+
+        if (chi.empty()) {
+            n->set_leaf(); // terminal node
+            n->set_cost(1);
+            return true; // no children
+        }
+
+        // order subproblems in decreasing order of their heuristic - largest UB first
+        // (use reverse iterator due to stack reversal)
+        std::sort(chi.begin(), chi.end(), search_node::heur_greater);
+
+        n->add_cildren(chi);
+
+        return false; // default
+    } else { // Expand an OR node
+        assert(n->get_type() == NODE_OR);
+       
+        int var = n->get_variable();
+    
+        // Increase OR node expansions
+        m_num_nodes.second += 1;
+    
+        // retrieve precomputed labels and heuristic values
+        std::vector<double>& heur = n->get_heur_cache();
+        for (int val = m_domains[var] - 1; val >= 0; --val) {
+            // early pruning if heuristic is zero (since it's an upper bound)
+            if (heur[2 * var] == 0) { // 2*i=heuristic, 2*i+1=label
+                continue;
+            }
+    
+            std::unique_ptr<search_node> c = std::make_unique<search_node>(var, val, NODE_AND); // uses cached label
+            // set cached heur. value (includes the weight)
+            c->set_weight(heur[2 * val + 1]);
+            c->set_heur(heur[2 * val]);
+            c->set_depth(n->get_depth() + 1);
+            chi.push_back(c);
+        }
+    
+        if (chi.empty()) { // deadend
+            n->set_leaf();
+            n->set_cost(0);
+            return true; // no children
+        }
+    
+        // sort new nodes by decreasing heuristic value - largest UB first
+        // (use reverse iterator due to stack reversal)
+        sort(chi.begin(), chi.end(), search_node::heur_greater);
+    
+        n->add_children(chi);
+    
+        return false; // default    
+    }
+} 
+
+
+
+bool map2u::can_prune(search_node* n) {
+    return false;
+}
+
+
 /// Brute force search with exact CVE based evaluation (exact)
 void map2u::bnb() {
 
     // Prologue
-    std::cout << "[BNB] Running Branch and Bound for MAP" << std::endl;
+    std::cout << "[BB] Running OR Branch and Bound for Credal MAP" << std::endl;
     if (m_query_type == MERLIN_MMAP_MAXIMAX) {
-        std::cout << "[BNB] Query type: maximax" << std::endl;
+        std::cout << "[BB] Query type: maximax" << std::endl;
     } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-        std::cout << "[BNB] Query type: maximin" << std::endl;
-    } else {
-        std::cout << "[BNB] Query type: interval" << std::endl;
-    }
-    std::cout << "[BNB] Query vars: ";
+        std::cout << "[BB] Query type: maximin" << std::endl;
+    } 
+
+    std::cout << "[BB] Query vars: ";
     std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
 
-    // Initialize the solver
-    size_t num_vars = m_query.size();
+    // Number of variables
+    size_t num_vars = nvar();
+    std::mt19937 rng(1234);
     size_t num_sols = 0;
     double best_score = -1;
-    std::vector<int> best_config;
-
-    // Initialize the exact scorer (cve2u)
-    std::ostringstream oss;
-    oss << "Verbose=0,Seed=" << m_seed;
-    std::vector<interval> fs = get_factors();
-    merlin::cve2u exact_scorer(fs);
-    exact_scorer.set_properties(oss.str());
-    exact_scorer.init();
-
-    // Enumerate all possible assignments of the MAP variables
-    std::vector<int> values(num_vars, 0);
-    values[num_vars - 1] = -1;
-    int i;
     bool timeout = false;
-    std::cout << "[BNB] Start search ...:" << std::endl;
-    while (true) {
+    std::vector<int> best_config(num_vars, -1);
+    double* _EmergencyMem = new double[10]; // a memory buffer
 
-        // Enumerate "parent" variables.
-        for (i = num_vars - 1; i >= 0; --i) {
-            if (values[i] < 1) break;
-            values[i] = 0;
-        }
+    // Create the minfill elimination ordering (for precompiled heuristics)
+    std::vector<size_t> elim_order;
+    elim_order = order2();
+    std::cout << "[BB] Elimination order: ";
+    std::copy(elim_order.begin(), elim_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::cout << std::endl;
+    std::cout << "[BB] Induced width: " << m_width << std::endl;
+    std::cout << "[BB] MB ibound: " << m_ibound << std::endl;
+    std::cout << "[BB] Number of variables: " << num_vars << std::endl;
 
-        if (i < 0) break;	// done;
-        ++values[i];
+    // Branch and bound search
+    m_solved = false;
+	m_num_nodes = std::make_pair(0, 0);
+    m_pseudotree = std::make_unique<pseudotree>();
 
-        // NOW: all guery variables have a specific value combination.
-        std::map<size_t, size_t> config;
-        for (size_t j = 0; j < m_query.size(); ++j) {
-            config[m_query[j]] = values[j];
-        }
+    try {
 
-        // Evaluate the current MAP assignment
-        std::pair<double, double> result = exact_scorer.eval(config);
-        if (m_query_type == MERLIN_MMAP_MAXIMAX) {
-            if (result.second > best_score) {
-                best_score = result.second;
-                best_config = values;
-                num_sols++;
+		// Init the root of the search space
+ 		m_stack.push(std::make_unique<search_node>(num_vars, 0, NODE_AND));
+        m_propagator = std::make_unique<bound_propagator>();
 
-                std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")]: ";
-                std::copy(best_config.begin(), best_config.end(), std::ostream_iterator<int>(std::cout, " "));
-                std::cout << std::endl;
-            }
-        } else if (m_query_type == MERLIN_MMAP_MAXIMIN) {
-            if (result.first > best_score) {
-                best_score = result.first;
-                best_config = values;
-                num_sols++;
+        // Search
+		std::unique_ptr<search_node> n = next_leaf();
+		while (n != nullptr) { // throws timeout
+			m_propagator->propagate(n.get(), true); // true = report solutions
+			m_best_score = m_propagator->get_score();
+			n = next_leaf();
+		}
 
-                std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")]: ";
-                std::copy(best_config.begin(), best_config.end(), std::ostream_iterator<int>(std::cout, " "));
-                std::cout << std::endl;
-            }
-        } else {
-            // do nothing for now, but later collect the non-dominated ones
-        }
-
-        // Check for timeout
-        double elapsed = (timeSystem() - m_start_time);
-        if (m_time_limit > 0 && elapsed > m_time_limit) {
-            std::cout << "  - TIMELIMT" << std::endl;
-            timeout = true;
-        }
+		// Proved optimality
+		m_solved = true;
+	} catch (std::bad_alloc& ba) {
+		delete[] _EmergencyMem;
+		_EmergencyMem = NULL;
+		std::cout << "Critical out of memory exception! Aborting!";
+	} catch (int e) {
+        timeout = true;
     }
 
     // Assemble the solution
@@ -552,14 +719,20 @@ void map2u::bnb() {
         m_best_config[i] = best_config[i];
     }
 
-    std::cout << "[BNB] Finished search" << std::endl;
-    std::cout << "[BNB] Best solution: ";
+    std::cout << "[BB] Finished search" << std::endl;
+    std::cout << "[BB] Best solution: ";
     std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
-    std::cout << "[BNB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
-    std::cout << "[BNB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    std::cout << "[BNB] Solutions found: " << num_sols << std::endl;
-    std::cout << "[BNB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
+    std::cout << "[BB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[BB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[BB] Solutions found: " << num_sols << std::endl;
+    std::cout << "[BB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
+
+    // Clean up
+    if (_EmergencyMem != NULL) {
+        delete[] _EmergencyMem;
+        _EmergencyMem = NULL;
+    }
 }
 
 // AND/OR Branch and Bound search
@@ -570,14 +743,14 @@ void map2u::aobb() {
 
     std::cout << "[AOBB] Running AND/OR Branch and Bound search ..." << std::endl;
 
-    std::cout << "[BNB] Finished search" << std::endl;
-    std::cout << "[BNB] Best solution: ";
+    std::cout << "[AOBB] Finished search" << std::endl;
+    std::cout << "[AOBB] Best solution: ";
     std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
-    std::cout << "[BNB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
-    std::cout << "[BNB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    std::cout << "[BNB] Solutions found: " << num_sols << std::endl;
-    std::cout << "[BNB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
+    std::cout << "[AOBB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[AOBB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[AOBB] Solutions found: " << num_sols << std::endl;
+    std::cout << "[AOBB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 }
 
 // Run solver

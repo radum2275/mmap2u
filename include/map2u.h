@@ -30,8 +30,13 @@
 #include "loopy2u.h"
 #include "potential.h"
 #include "bucket.h"
+#include "search_node.h"
+#include "bound_propagator.h"
+#include "pseudotree.h"
 
 namespace merlin {
+
+#define SEARCH_TIMEOUT 1000
 
 
 /**
@@ -128,6 +133,7 @@ public:
 			return;
 		}
 		m_verbose = 1;
+		m_solved = false;
 		std::vector<std::string> strs = merlin::split(opt, ',');
 		for (size_t i = 0; i < strs.size(); ++i) {
 			std::vector<std::string> asgn = merlin::split(strs[i], '=');
@@ -245,6 +251,15 @@ protected:
 		return f.maxmarginal(vs);
 	}
 
+	std::unique_ptr<search_node> next_leaf();
+	std::unique_ptr<search_node> next_node();
+	bool do_process(search_node* n);
+	bool do_caching(search_node* n);
+	bool do_pruning(search_node* n);
+	bool do_expand(search_node* n);
+	bool can_prune(search_node* n);
+	bool generate_children(search_node* n, std::vector<std::unique_ptr<search_node>>& chi);
+
 protected:
 	// Members:
 
@@ -266,6 +281,13 @@ protected:
 	size_t m_iterations;							///< Number of iterations for moment-matching
 	bool m_matching;								///< Do moment matching
 
+	std::stack<std::unique_ptr<search_node>> m_stack; 	///< Search stack
+	std::unique_ptr<bound_propagator> m_propagator;		///< Bound propagator
+	bool m_solved; 										///< Solved optimally
+	std::map<size_t, size_t> m_assignment;				///< Assignment during search
+	std::pair<size_t, size_t> m_num_nodes;				///< Number of node (AND, OR)
+	std::unique_ptr<pseudotree> m_pseudotree;			///< Pseudo tree
+	
 };
 
 } // namespace
