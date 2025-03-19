@@ -28,9 +28,6 @@
 
 #include "base.h"
 
-#define NODE_AND 1
-#define NODE_0R 2
-
 namespace merlin {
 
 ///
@@ -45,13 +42,20 @@ class search_node {
         double m_cost;							// as in g-value
         double m_weight;                        // OR-AND arc weight
         size_t m_depth;                         // depth
+        bool m_leaf;                            // leaf node
+        double m_subsolved;                     // cost of solved subproblems
 
-        std::unique_ptr<search_node> m_parent;
-        std::vector<std::unique_ptr<search_node>> m_children;
+        search_node* m_parent;                  // parent
+        std::vector<search_node*> m_children;   // children
+        std::vector<double> m_cache;            // heuristic cache
+        std::vector<int> m_assignment;          // optimal assignment below node
 
     public:
-        search_node(size_t var, int val, size_t type) 
-            : m_variable(var), m_value(val), m_type(type), m_heur(0), m_cost(0), m_parent(nullptr) {};
+        search_node(size_t var, int val, size_t type) :
+            m_variable(var), m_value(val), m_type(type), m_heur(1.0), 
+            m_cost(NAN), m_weight(1.0), m_parent(NULL), m_leaf(false),
+            m_subsolved(1.0) {};
+        
         ~search_node() {};
 
         inline size_t get_variable() {
@@ -78,6 +82,15 @@ class search_node {
         inline size_t get_depth() {
             return m_depth;
         }
+        inline double get_subsolved() {
+            return m_subsolved;
+        }
+        inline void set_subsolved(double d) {
+            m_subsolved = d;
+        }
+        inline void add_subsolved(double d) {
+            m_subsolved *= d;
+        }
         inline void set_weight(double w) {
             m_weight = w;
         }
@@ -87,18 +100,47 @@ class search_node {
         inline void set_cost(double c) {
             m_cost = c;
         }
-        inline void set_parent(std::unique_ptr<search_node> p) {
-            m_parent = std::move(p);
+        inline void set_leaf(bool f) {
+            m_leaf = f;
+        }
+        inline bool get_leaf() {
+            return m_leaf;
+        }
+        inline void set_parent(search_node* p) {
+            m_parent = p;
         }
         inline size_t num_children() {
             return m_children.size();
         }
-        inline search_node& get_parent() {
-            return *m_parent;
+        inline search_node* get_parent() {
+            return m_parent;
         }
-        inline search_node& get_child(size_t v) {
+        inline search_node* get_child(size_t v) {
             assert (v >= 0 && v < m_children.size());
-            return *(m_children[v]);
+            return m_children[v];
+        }
+        inline void add_children(std::vector<search_node*>& chi) {
+            m_children = chi;
+        }
+        inline void add_child(search_node* c) {
+            m_children.push_back(c);
+        }
+        inline std::vector<search_node*>& get_children() {
+            return m_children;
+        }
+        inline search_node* remove_child(search_node* c) {
+            std::vector<search_node*>::iterator it = std::find(m_children.begin(), m_children.end(), c);
+            if (it != m_children.end()) {
+                return (*it);
+            }
+
+            return NULL;
+        }
+        inline std::vector<double>& get_cache() {
+            return m_cache;
+        }
+        inline void set_cache(std::vector<double>& cache) {
+            m_cache = cache;
         }
         inline static bool heur_less(const search_node* a, const search_node* b) {
             return a->get_heur() < b->get_heur();
@@ -107,8 +149,25 @@ class search_node {
             return a->get_heur() > b->get_heur();
 
         }
-        void get_path_assignment(std::vector<int>& assignment) {
-
+        inline std::map<size_t, size_t> get_path_assignment() {
+            std::map<size_t, size_t> assgn;
+            return assgn;
+        }
+        inline std::vector<int>& get_assignment() {
+            return m_assignment;
+        }
+        inline void set_assignment(std::vector<int>& assgn) {
+            m_assignment = assgn;
+        }
+        inline void clear_assignment() {
+            m_assignment.clear();
+        }
+        inline bool is_cachable() {
+            if (m_type == MERLIN_NODE_OR) {
+                return true;
+            } else {
+                return false;
+            }
         }
     };
 

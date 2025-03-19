@@ -498,7 +498,7 @@ search_node* map2u::next_node() {
 
 bool map2u::do_process(search_node* n) {
 	assert(n != NULL);
-	if (n->get_type() == NODE_AND) {
+	if (n->get_type() == MERLIN_NODE_AND) {
 		size_t var = n->get_variable();
 		size_t val = n->get_value();
 		m_assignment[var] = val; // record assignment
@@ -518,130 +518,135 @@ bool map2u::do_pruning(search_node* n) {
     return false; 
 }
 
-// bool map2u::do_expand(search_node* n) {
-// 	assert(n);
-// 	std::vector<std::unique_ptr<search_node>> expanded;
+bool map2u::do_expand(search_node* n) {
+	assert(n);
+	std::vector<search_node*> expanded;
 
-// 	if (n->get_type() == NODE_AND) {  // AND node
+	if (n->get_type() == MERLIN_NODE_AND) {  // AND node
 
-// 		// Update the heuristic
-// 		std::vector<int> assignment;
-// 		assignment.resize(m_assignment.size(), -1);
-// 		n->get_path_assignment(assignment);
-// 		size_t curr_var = n->get_variable();
-//         m_heuristic->update(assignment);
+		// Update the heuristic
+		std::map<size_t, size_t> assignment = n->get_path_assignment();
+		size_t var = n->get_variable();
+        // m_heuristic->update(var, assignment);
 
-//         // Generate the OR children of an AND node (if any)
-// 		if (generate_children(n, expanded)) {
-// 			return true; // no children
-//         }
+        // Generate the OR children of an AND node (if any)
+		if (generate_children(n, expanded)) {
+			return true; // no children
+        }
 
-//         std::vector<std::unique_ptr<search_node>>::reverse_iterator it = expanded.rbegin();
-// 		for (; it != expanded.rend(); ++it) {
-// 			m_stack.push(std::move(*it));
-//         }
+        // Push children onto the stack
+        std::vector<search_node*>::reverse_iterator it = expanded.rbegin();
+		for (; it != expanded.rend(); ++it) {
+			m_stack.push(*it);
+        }
 
-// 	} else if (n->get_type() == NODE_0R) {  // OR node
+	} else if (n->get_type() == MERLIN_NODE_OR) {  // OR node
 
-//         // Generate the AND children of an OR node (if any)
-// 		if (generate_children(n, expanded)) {
-// 			return true; // no children
-//         }
+        // Generate the AND children of an OR node (if any)
+		if (generate_children(n, expanded)) {
+			return true; // no children
+        }
 
-//         std::vector<std::unique_ptr<search_node>>::reverse_iterator it = expanded.rbegin();
-// 		for (; it != expanded.rend(); ++it) {
-// 			m_stack.push(std::move(*it));
-// 		} // for loop
+        // Push children onto the stack
+        std::vector<search_node*>::reverse_iterator it = expanded.rbegin();
+		for (; it != expanded.rend(); ++it) {
+			m_stack.push(*it);
+		} // for loop
 
-// 	} // if over node type
+	} // if over node type
 
-// 	return false; // default false    
-// }
+	return false; // default false (children generated)
+}
 
-// bool map2u::generate_children(search_node* n, std::vector<std::unique_ptr<search_node>>& chi) {
-//     assert(n != nullptr);
+void map2u::heuristic(search_node* n) {
 
-//     // Expand an AND node
-//     if (n->get_type() == NODE_AND) {
-//         assert(n && n->get_type() == NODE_AND);
+    // Safety checks
+    assert(n && n->get_type() == MERLIN_NODE_OR);
+}
 
-//         size_t var = n->get_variable();
-//         pseudotree_node* ptnode = m_pseudotree->get_node(var);
+bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
+    
+    // Safety checks
+    assert(n != NULL);
 
-//         // Increase AND node expansions
-//         m_num_nodes.first += 1;
+    // Expand an AND node
+    if (n->get_type() == MERLIN_NODE_AND) {
 
-//         // Create new OR children (going in reverse due to reversal on stack)
-//         std::vector<pseudotree_node*>::const_reverse_iterator it = ptnode->get_children().rbegin();
-//         for (; it != ptnode->get_children().rend(); ++it) {
+        // Get the AND node variable
+        size_t var = n->get_variable();
+        pseudotree_node* ptnode = m_pseudotree->get_node(var);
 
-//             // Get the pseudotree child
-//             int vChild = (*it)->get_variable();
+        // Increase AND node expansions
+        m_num_nodes.first += 1;
+
+        // Create new OR children (going in reverse due to reversal on stack)
+        std::vector<pseudotree_node*>::const_reverse_iterator it = ptnode->get_children().rbegin();
+        for (; it != ptnode->get_children().rend(); ++it) {
+
+            // Get the pseudotree child
+            int child_var = (*it)->get_variable();
             
-//             // Create the OR child
-//             std::unique_ptr<search_node> c = std::make_unique<search_node>(vChild, -1, NODE_OR);
+            // Create the OR child
+            search_node* c = new search_node(child_var, -1, MERLIN_NODE_OR);
           
-//             // Compute and set heuristic estimate, includes child labels
-//             heuristic(c);
-//             c->set_depth(n->get_depth() + 1);
-//             chi.push_back(std::move(c));
+            // Compute and set heuristic estimate, includes child weights
+            heuristic(c);
+            c->set_depth(n->get_depth() + 1);
+            chi.push_back(c);
 
-//         } // for loop over new OR children
+        } // for loop over new OR children
 
-//         if (chi.empty()) {
-//             n->set_leaf(); // terminal node
-//             n->set_cost(1);
-//             return true; // no children
-//         }
+        if (chi.empty()) {
+            n->set_leaf(true); // terminal node
+            n->set_cost(1);
+            return true; // no children
+        }
 
-//         // order subproblems in decreasing order of their heuristic - largest UB first
-//         // (use reverse iterator due to stack reversal)
-//         std::sort(chi.begin(), chi.end(), search_node::heur_greater);
+        n->add_children(chi);
 
-//         n->add_cildren(chi);
-
-//         return false; // default
-//     } else { // Expand an OR node
-//         assert(n->get_type() == NODE_OR);
+        return false; // default
+    } else { // Expand an OR node
+        assert(n && n->get_type() == MERLIN_NODE_OR);
        
-//         int var = n->get_variable();
+        // Get the OR node variable
+        int var = n->get_variable();
     
-//         // Increase OR node expansions
-//         m_num_nodes.second += 1;
+        // Increase OR node expansions
+        m_num_nodes.second += 1;
     
-//         // retrieve precomputed labels and heuristic values
-//         std::vector<double>& heur = n->get_heur_cache();
-//         for (int val = m_domains[var] - 1; val >= 0; --val) {
-//             // early pruning if heuristic is zero (since it's an upper bound)
-//             if (heur[2 * var] == 0) { // 2*i=heuristic, 2*i+1=label
-//                 continue;
-//             }
+        // Retrieve precomputed weights and heuristic values
+        std::vector<double>& heur = n->get_cache();
+        for (int val = m_domains[var] - 1; val >= 0; --val) {
+            // early pruning if heuristic is zero (since it's an upper bound)
+            if (heur[2 * var] == 0) { // 2*i=heuristic, 2*i+1=label
+                continue;
+            }
     
-//             std::unique_ptr<search_node> c = std::make_unique<search_node>(var, val, NODE_AND); // uses cached label
-//             // set cached heur. value (includes the weight)
-//             c->set_weight(heur[2 * val + 1]);
-//             c->set_heur(heur[2 * val]);
-//             c->set_depth(n->get_depth() + 1);
-//             chi.push_back(c);
-//         }
-    
-//         if (chi.empty()) { // deadend
-//             n->set_leaf();
-//             n->set_cost(0);
-//             return true; // no children
-//         }
-    
-//         // sort new nodes by decreasing heuristic value - largest UB first
-//         // (use reverse iterator due to stack reversal)
-//         sort(chi.begin(), chi.end(), search_node::heur_greater);
-    
-//         n->add_children(chi);
-    
-//         return false; // default    
-//     }
-// } 
+            search_node* c = new search_node(var, val, MERLIN_NODE_AND); // uses cached label
 
-
+            // Set cached heur. value (includes the weight)
+            c->set_weight(heur[2 * val + 1]);
+            c->set_heur(heur[2 * val]);
+            c->set_depth(n->get_depth() + 1);
+            
+            chi.push_back(c);
+        }
+    
+        if (chi.empty()) { // deadend
+            n->set_leaf(true);
+            n->set_cost(0);
+            return true; // no children
+        }
+    
+        // sort new nodes by decreasing heuristic value - largest UB first
+        // (use reverse iterator due to stack reversal)
+        sort(chi.begin(), chi.end(), search_node::heur_greater);
+    
+        n->add_children(chi);
+    
+        return false; // default    
+    }
+} 
 
 bool map2u::can_prune(search_node* n) {
     return false;
@@ -698,25 +703,29 @@ void map2u::bnb() {
         m_pseudotree->dump(std::cout);
     }
 
+    // Update the variable domains (including the dummy root of the pseudo tree)
+    m_domains = m_dims;
+    m_domains.push_back(1); // dummy var has 1 value!
+
     std::cout << "[BB] Pseudo tree width: " << m_pseudotree->get_width() << std::endl;
     std::cout << "[BB] Pseudo tree height: " << m_pseudotree->get_height() << std::endl;
 
     try {
 
 		// Init the root of the search space
-        size_t root_var = m_pseudotree->get_root()->get_variable();
-        search_node* root = new search_node(root_var, 0, NODE_AND);
-        m_stack.push(root);
-        m_propagator = std::make_unique<bound_propagator>();
+        // size_t root_var = m_pseudotree->get_root()->get_variable();
+        // search_node* root = new search_node(root_var, 0, MERLIN_NODE_AND);
+        // m_stack.push(root);
+        // m_propagator = std::make_unique<bound_propagator>();
 
 
-        // Search
-		search_node* n = next_leaf();
-		while (n != NULL) { // throws timeout
-			m_propagator->propagate(n, true); // true = report solutions
-			m_best_score = m_propagator->get_score();
-			n = next_leaf();
-		}
+        // // Search
+		// search_node* n = next_leaf();
+		// while (n != NULL) { // throws timeout
+		// 	m_propagator->propagate(n, true); // true = report solutions
+		// 	m_best_score = m_propagator->get_best_cost();
+		// 	n = next_leaf();
+		// }
 
 	// 	// Proved optimality
 		m_solved = true;

@@ -28,7 +28,7 @@
 
 #include "base.h"
 #include "search_node.h"
-
+#include "pseudotree.h"
 namespace merlin {
 
 ///
@@ -39,8 +39,23 @@ public:
     bound_propagator();
     ~bound_propagator();
 
-    void propagate(search_node* n, bool assignment);
-    double get_score();
+    search_node* propagate(search_node* n, bool solution, search_node* upper_limit = NULL);
+    void propagate_tuple(search_node* start, search_node* end);
+    void update_solution(double timestamp, double cost, std::vector<int>& sol, std::pair<size_t, size_t> num_nodes);
+
+    inline double get_best_cost() {
+        return m_best_cost;
+    };
+
+protected:
+    /// Members
+
+    bool m_caching;                                 ///< Enable caching
+    std::vector<std::vector<int>> m_solutions;      ///< Solutions
+    double m_best_cost;                             ///< Best solution cost so far
+    pseudotree* m_pseudotree;                       ///< Pseudo tree
+    double m_start_time;                            ///< Start time
+
 };
 
 } // end namespace

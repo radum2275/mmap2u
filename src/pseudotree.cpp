@@ -114,9 +114,9 @@ void pseudotree::build(graph& g, std::vector<size_t>& order, bool is_chain) {
 // Update the contexts of the nodes
 void pseudotree::update_contexts(graph& g) {
 
-	for (size_t v = 0; v < m_nodes.size(); ++v) {
+	for (size_t i = 0; i < m_nodes.size(); ++i) {
 
-		pseudotree_node *n = m_nodes[v].get();
+		pseudotree_node *n = m_nodes[i].get();
 		if (n->get_parent() == NULL) {
 			continue; // skip the root
 		}
@@ -144,7 +144,7 @@ void pseudotree::update_contexts(graph& g) {
 
 			// Found an ancestor connected to a descendant in the induced graph
 			if (found) {
-				ancestors.insert(v);
+				ancestors.insert(p->get_variable());
 			}
 
 			p = p->get_parent();

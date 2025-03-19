@@ -1271,7 +1271,7 @@ protected:
 	// Members:
 
 	std::vector<flist> m_vadj;		///< Variable adjacency lists (variables to factors)
-	std::vector<double> m_dims;		///< Dimensions of variables as stored in graphical model object
+	std::vector<size_t> m_dims;		///< Dimensions of variables as stored in graphical model object
 	size_t m_width;					///< Induced width of the credal network
 
 };

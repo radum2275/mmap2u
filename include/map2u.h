@@ -261,7 +261,8 @@ protected:
 	bool do_pruning(search_node* n);
 	bool do_expand(search_node* n);
 	bool can_prune(search_node* n);
-	bool generate_children(search_node* n, std::vector<search_node_ptr>& chi);
+	bool generate_children(search_node* n, std::vector<search_node*>& chi);
+	void heuristic(search_node* n);
 
 protected:
 	// Members:
@@ -290,7 +291,7 @@ protected:
 	std::map<size_t, size_t> m_assignment;			///< Assignment during search
 	std::pair<size_t, size_t> m_num_nodes;			///< Number of node (AND, OR)
 	std::unique_ptr<pseudotree> m_pseudotree;		///< Pseudo tree
-
+	std::vector<size_t> m_domains;					///< Variable domains (including dummy)
 };
 
 } // namespace

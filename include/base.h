@@ -144,4 +144,12 @@
 #define MERLIN_OUTPUT_UAI	10			///< UAI output format (default)
 #define MERLIN_OUTPUT_JSON	11			///< JSON output format
 
+///
+/// Search node types
+///
+#define MERLIN_NODE_AND 1
+#define MERLIN_NODE_OR 2
+
+#define UNKNOWN -1
+
 #endif /* IBM_MERLIN_BASE_H_ */
