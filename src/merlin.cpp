@@ -722,11 +722,15 @@ int Merlin::run() {
 				merlin::map2u s(m_gmo);
 				std::ostringstream oss;
 				oss << "SearchMethod=bnb,"
-					<< "Threshold=" << m_threshold << ","
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
 					<< "Verbose=" << m_verbose << ","
 					<< "QueryType=" << m_query_type << ","
 					<< "TimeLimit=" << m_time_limit << ","
 					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);

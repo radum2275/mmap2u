@@ -148,8 +148,17 @@ public:
 	/// \brief Remove a node from the graph.
 	/// \param i 	Index of the node to be removed
 	///
-	void remove_node(index i) {		// pop_back, or add to vVacant
-		m_vvacant.push(i); 	// can we keep track of "real" nNodes and iterate through them?
+	void remove_node(index i, bool all = false) {	// pop_back, or add to vVacant
+		if (!all) {
+			m_vvacant.push(i); 	// can we keep track of "real" nNodes and iterate through them?
+		} else { // remove the node and its edges
+			my_set<edge_id> N = neighbors(i);
+			for (my_set<edge_id>::const_iterator si = N.begin(); si != N.end(); ++si) {
+				edge_id e = (*si);
+				remove_edge(e.first, e.second);
+			}
+			m_vvacant.push(i);
+		}
 	};
 
 	///
@@ -262,6 +271,23 @@ public:
 		return m_adj[i];
 	};
 
+	/// @brief Get the neighbors of a node in the graph
+	/// @param v the input node
+	/// @return a vector containing the neighboring nodes
+	std::set<size_t> get_neighbors(index v) {
+		std::set<size_t> result;
+		const my_set<edge_id>& N = neighbors(v);
+		for (my_set<edge_id>::const_iterator si = N.begin(); si != N.end(); ++si) {
+			if (si->first == v) {
+				result.insert(si->second); // add the neighbor
+			} else if (si->second == v) {
+				result.insert(si->first);
+			}
+		}
+
+		return result;
+	}
+
 	///
 	/// \brief Return an edge (by its index).
 	/// \param eij 	The index of the edge
@@ -305,6 +331,21 @@ public:
 	/// \brief Check if disconnected
 	///
 	bool is_disconnected();
+
+	/// @brief Add edges between the pairs of nodes in the clique.
+	/// @param clique the input clique
+	inline void add_clique(std::set<size_t>& clique) {
+		if (clique.size() <= 1) {
+			return;
+		}
+
+		std::vector<size_t> temp(clique.begin(), clique.end());
+		for (size_t i = 0; i < temp.size() - 1; ++i) {
+			for (size_t j = i + 1; j < temp.size(); ++j) {
+				add_edge(temp[i], temp[j]);
+			}
+		}
+	}
 
 private:
 	bool cyclic_util(size_t v, std::vector<bool>& visited, int parent);

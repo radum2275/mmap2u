@@ -490,6 +490,23 @@ public:
 
 	// Distribution-based operators:
 
+	/// @brief Create the moral graph of the credal network
+	/// @return the moral graph
+	graph moralize() {
+		std::vector<variable_set> adj = mrf();
+		size_t n = nvar();
+		graph g(n); // create the undirected graph (moral graph)
+		for (size_t i = 0; i < adj.size(); ++i) {
+			const variable_set& vi = adj[i];
+			for (variable_set::const_iterator cj = vi.begin();
+					cj != vi.end(); ++cj) {
+				size_t j = _vindex(*cj);
+				g.add_edge(i, j);
+			}
+		}
+
+		return g;
+	}
 
 	// Ordering: variable (elimination) orders and factor orders
 

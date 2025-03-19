@@ -22,8 +22,8 @@
 /// \brief Branch and Bound algorithms for MAP in credal nets with intervals and binary variables
 /// \author Radu Marinescu radu.marinescu@ie.ibm.com
 
-#ifndef IBM_LOOPY_MAP2U_H_
-#define IBM_LOOPY_MAP2U_H_
+#ifndef IBM_MERLIN_MAP2U_H_
+#define IBM_MERLIN_MAP2U_H_
 
 #include "credal_net.h"
 #include "algorithm.h"
@@ -51,6 +51,9 @@ public:
 	typedef credal_net::findex findex;        ///< Factor index
 	typedef credal_net::vindex vindex;        ///< Variable index
 	typedef credal_net::flist flist;          ///< Collection of factor indices
+	
+	typedef std::unique_ptr<search_node> search_node_ptr;
+	typedef std::unique_ptr<bound_propagator> bound_propagator_ptr;
 
 public:
 
@@ -251,14 +254,14 @@ protected:
 		return f.maxmarginal(vs);
 	}
 
-	std::unique_ptr<search_node> next_leaf();
-	std::unique_ptr<search_node> next_node();
+	search_node* next_leaf();
+	search_node* next_node();
 	bool do_process(search_node* n);
 	bool do_caching(search_node* n);
 	bool do_pruning(search_node* n);
 	bool do_expand(search_node* n);
 	bool can_prune(search_node* n);
-	bool generate_children(search_node* n, std::vector<std::unique_ptr<search_node>>& chi);
+	bool generate_children(search_node* n, std::vector<search_node_ptr>& chi);
 
 protected:
 	// Members:
@@ -281,13 +284,13 @@ protected:
 	size_t m_iterations;							///< Number of iterations for moment-matching
 	bool m_matching;								///< Do moment matching
 
-	std::stack<std::unique_ptr<search_node>> m_stack; 	///< Search stack
-	std::unique_ptr<bound_propagator> m_propagator;		///< Bound propagator
-	bool m_solved; 										///< Solved optimally
-	std::map<size_t, size_t> m_assignment;				///< Assignment during search
-	std::pair<size_t, size_t> m_num_nodes;				///< Number of node (AND, OR)
-	std::unique_ptr<pseudotree> m_pseudotree;			///< Pseudo tree
-	
+	std::stack<search_node*> m_stack; 				///< Search stack
+	std::unique_ptr<bound_propagator> m_propagator;	///< Bound propagator
+	bool m_solved; 									///< Solved optimally
+	std::map<size_t, size_t> m_assignment;			///< Assignment during search
+	std::pair<size_t, size_t> m_num_nodes;			///< Number of node (AND, OR)
+	std::unique_ptr<pseudotree> m_pseudotree;		///< Pseudo tree
+
 };
 
 } // namespace
@@ -295,4 +298,4 @@ protected:
 
 
 
-#endif /* IBM_MERLIN_CTE_H_ */
+#endif /* IBM_MERLIN_MAP2U_H_ */
