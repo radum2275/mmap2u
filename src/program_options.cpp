@@ -56,7 +56,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("iterations,n", po::value<int>(), "number of iterations")
 			("threshold,T", po::value<double>(), "threshold for L2U convergence")
 			("epsilon", po::value<double>(), "epsilon for converting to an interval credal net and epsilon-coverings")
-			("potential-approx", po::value<std::string>(), "potential approximation method (none, covering, lpub, gplb)")
+			("potential-approx", po::value<std::string>(), "potential approximation method (none, covering, plub, pglb)")
 			("potential-size", po::value<size_t>(), "maximum potential size (0 - no bounds)")
 			("flip-proba", po::value<double>(), "random flip probability for MMAP")
 			("init-method", po::value<std::string>(), "initialization method for MMAP")

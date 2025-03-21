@@ -951,6 +951,30 @@ bool map2u::can_prune(search_node* n) {
 	return false;
 }
 
+// Init the search space
+search_node* map2u::init_search_space(double global_bound, double global_constant) {
+
+    assert(m_search_space->get_root() == NULL);
+
+	// Add initial set of dummy nodes.
+
+	// create root OR node (dummy variable)
+	pseudotree_node* ptroot = m_pseudotree->get_root();
+    size_t root_var = ptroot->get_variable();
+	search_node* root = new search_node(root_var, -1, MERLIN_NODE_OR);
+	root->set_heur(global_bound);
+	m_search_space->set_root(root);
+
+	// create dummy AND node (domain size 1) with global constant as label
+	search_node* next = new search_node(root_var, 0, MERLIN_NODE_AND);
+    next->set_parent(root);
+    next->set_weight(global_constant);
+	root->add_child(next);
+	next->set_heur( global_bound/next->get_weight() );
+
+	return next;
+}
+
 
 /// Brute force search with exact CVE based evaluation (exact)
 void map2u::bnb() {
@@ -1015,24 +1039,24 @@ void map2u::bnb() {
     std::cout << "[BB] Pseudo tree height: " << m_pseudotree->get_height() << std::endl;
 
     // Build the heuristic
-    double h = build_heuristic(); // get the global bound
+    double global_bound = build_heuristic(); // get the global bound
+    double global_constant = 1.0; 
+
+    // Init search space
+    m_search_space = std::make_unique<search_space>();
+    m_search_space->init(num_vars);
+
+    // Init the bound propagator
+    m_propagator = std::make_unique<bound_propagator>();
+    m_propagator->init(m_start_time, m_pseudotree.get(), m_search_space.get());
 
     try {
 
         // Init the search space
-        m_search_space = std::make_unique<search_space>();
-        m_search_space->init(num_vars);
-
-		// Init the root of the search space
-        size_t root_var = m_pseudotree->get_root()->get_variable();
-        search_node* root = new search_node(root_var, 0, MERLIN_NODE_AND);
-        root->set_heur(h);
-        root->set_weight(1.0);
-        m_stack.push(root);
-
-        // Init the bound propagator
-        m_propagator = std::make_unique<bound_propagator>();
-        m_propagator->init(m_start_time, m_pseudotree.get(), m_search_space.get());
+        search_node* first = init_search_space(global_bound, global_constant);
+        if (first) {
+            m_stack.push(first);
+        }
 
         // Search
 		search_node* n = next_leaf();

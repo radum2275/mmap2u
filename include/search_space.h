@@ -27,6 +27,7 @@
 #define IBM_LOOPY_SEARCH_SPACE_H_
 
 #include "base.h"
+#include "search_node.h"
 #include "cache_table.h"
 
 namespace merlin {
@@ -39,12 +40,26 @@ public:
 
     /// @brief Constructor
     search_space() {
+        m_root = NULL;
         m_num_vars = 0;
         m_num_nodes = std::make_pair(0, 0);
     };
 
     /// @brief Destructor
     ~search_space() {};
+
+    /// @brief Set the root of the search space.
+    /// @param n is a search node
+    inline void set_root(search_node* n) {
+        assert(n != NULL);
+        m_root = n;
+    }
+
+    /// @brief Get the root of the search space.
+    /// @return a pointer to the root node
+    inline search_node* get_root() {
+        return m_root;
+    }
 
     /// @brief Get the number of nodes expanded.
     /// @return a pair of two numbers representing the AND and OR nodes.
@@ -94,6 +109,7 @@ public:
 protected:
     /// Members
 
+    search_node* m_root;                                ///< Root
     size_t m_num_vars;                                  ///< Number of variables
     std::pair<size_t, size_t> m_num_nodes;              ///< Number of nodes (AND, OR)
     std::vector<std::unique_ptr<cache_table>> m_cache;  ///< Cache

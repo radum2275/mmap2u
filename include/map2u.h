@@ -153,9 +153,9 @@ public:
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_NONE;
 				} else if (asgn[1].compare("covering") == 0) {
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_COVERING;
-				} else if (asgn[1].compare("lpub") == 0) {
+				} else if (asgn[1].compare("plub") == 0) {
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_LEAST_UPBO;
-				} else if (asgn[1].compare("gplb") == 0) {
+				} else if (asgn[1].compare("pglb") == 0) {
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_GREATEST_LOBO;
 				} else {
 					std::cout << "Unsupported potential approximation scheme!" << std::endl;
@@ -271,6 +271,7 @@ protected:
 	bool generate_children(search_node* n, std::vector<search_node*>& chi);
 	double heuristic(search_node* n);
 	void set_cache_context(search_node* n, const std::set<size_t>& ctxt) const;
+	search_node* init_search_space(double global_bound, double global_constant = 1.0);
 
 protected:
 	// Members:
