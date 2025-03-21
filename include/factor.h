@@ -1554,7 +1554,7 @@ public:
 	/// @return 
 	///
 	value get_value(std::map<size_t, size_t>& config) {
-		assert(config.size() == v_.size());
+		assert(config.size() >= v_.size()); // scope is included in config
 		config_index idx(v_, true); // default big endian
 		size_t i = idx.convert(config);
 		assert(i >= 0 && i < t_.size());

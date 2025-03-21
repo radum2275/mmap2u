@@ -830,7 +830,8 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
             
             // Create the OR child
             search_node* c = new search_node(child_var, -1, MERLIN_NODE_OR);
-          
+            c->set_parent(n);
+         
             // Compute and set heuristic estimate, includes child weights
             heuristic(c);
             c->set_depth(n->get_depth() + 1);
@@ -865,7 +866,8 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
             }
     
             search_node* c = new search_node(var, val, MERLIN_NODE_AND); // uses cached label
-
+            c->set_parent(n);
+            
             // Set cached heur. value (includes the weight)
             c->set_weight(heur[2 * val + 1]);
             c->set_heur(heur[2 * val]);
