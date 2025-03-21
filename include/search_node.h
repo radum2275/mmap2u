@@ -43,18 +43,22 @@ class search_node {
         double m_weight;                        // OR-AND arc weight
         size_t m_depth;                         // depth
         bool m_leaf;                            // leaf node
+        bool m_cachable;                        // cachable node
+        bool m_pruned;                          // pruned node
+        bool m_optimal;                         // optimal node (true)
         double m_subsolved;                     // cost of solved subproblems
 
         search_node* m_parent;                  // parent
         std::vector<search_node*> m_children;   // children
         std::vector<double> m_cache;            // heuristic cache
         std::vector<int> m_assignment;          // optimal assignment below node
+        std::string m_context;                  // cache context
 
     public:
         search_node(size_t var, int val, size_t type) :
             m_variable(var), m_value(val), m_type(type), m_heur(1.0), 
             m_cost(NAN), m_weight(1.0), m_parent(NULL), m_leaf(false),
-            m_subsolved(1.0) {};
+            m_subsolved(1.0), m_cachable(false), m_pruned(false), m_optimal(true) {};
         
         ~search_node() {};
 
@@ -163,11 +167,28 @@ class search_node {
             m_assignment.clear();
         }
         inline bool is_cachable() {
-            if (m_type == MERLIN_NODE_OR) {
-                return true;
-            } else {
-                return false;
-            }
+            return m_cachable;
+        }
+        inline void set_cachable() {
+            m_cachable = true;
+        }
+        inline void set_pruned() {
+            m_pruned = true;
+        }
+        inline bool is_pruned() {
+            return m_pruned;
+        }
+        inline void set_optimal(bool f) {
+            m_optimal = f;
+        }
+        inline bool is_optimal() {
+            return m_optimal;
+        }
+        inline void set_context(std::string context) {
+            m_context = context; // the value assignment to the context variables
+        }
+        inline std::string get_context() {
+            return m_context; // the value assignment to the context variables
         }
     };
 

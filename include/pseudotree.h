@@ -28,6 +28,8 @@
 
 #include "base.h"
 #include "graph.h"
+#include "interval.h"
+#include "potential.h"
 
 namespace merlin {
 
@@ -98,6 +100,15 @@ public:
         return m_height;
     }
     
+    /// @brief Get the original potentials associated with a variable
+    /// @param var is the index of the variable
+    /// @return a list of potentials.
+    std::list<potential>& get_potentials(size_t var) {
+        return m_potentials[var];
+    }
+
+   /// @brief Reset the mapping of potentials to variabeles.
+   void reset_potentials(std::vector<interval>& factors);
 
 protected:
 
@@ -127,6 +138,7 @@ protected:
     size_t m_width;                                 ///< Width of the pseudo tree
     std::vector<size_t> m_order;                    ///< Elimination order
     pseudotree_node* m_root;                        ///< The root node of the pseudo tree
+    std::vector<std::list<potential>> m_potentials; ///< The original potentials
 
 };
 

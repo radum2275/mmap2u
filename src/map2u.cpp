@@ -41,20 +41,163 @@ void map2u::init() {
 
         m_query.push_back(v);
     }
-
-    // Precompile heuristics
-    if ( (m_search_method.compare("bnb") == 0)
-        || (m_search_method.compare("aobb") == 0)
-        || (m_search_method.compare("bfs") == 0)
-        || (m_search_method.compare("aobf") == 0) ) {
-
-        std::cout << "[MAP] Precompile weighted mini-bucket heuristics ..." << std::endl;
-        precompile_heuristics();
-    }
 }
 
-void map2u::precompile_heuristics() {
+// Build the weighted mini-bucket heuristic
+double map2u::build_heuristic() {
+    
+    // Number of variables
+    size_t num_vars = nvar();
+    std::mt19937 rng(1234);
+    num_vars += 1; // include the dummy
+    m_buckets.clear();
+    m_intermediate.clear();
+    m_augmented.clear();
+    
+    std::cout << "[HEUR] Building the WMB heuristic..." << std::endl;
 
+    // Initialize the buckets
+    std::cout << "[HEUR] Initialize the buckets" << std::endl;
+    std::vector<bool> used(num_vars, false);
+    m_buckets.resize(num_vars);
+    m_intermediate.resize(num_vars);
+    m_augmented.resize(num_vars);
+    for (size_t i = 0; i < m_order.size(); ++i) {
+        size_t v = m_order[i];
+        m_buckets[i].set_variable(v);
+        for (size_t j = 0; j < m_factors.size(); ++j) {
+            interval& f = m_factors[j];
+            int ch = f.get_child();
+            if (used[ch] == true) {
+                continue;
+            } else {
+                // check if the current interval factor contains the bucket var
+                if (f.vars().contains(var(v))) {
+                    used[ch] = true;
+                    // buckets[i].add_potential(f.to_potential(false));
+
+                    potential p = f.to_potential(false);
+                    p.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+                    m_buckets[i].add_potential(p);
+                }
+            }
+        }
+    }
+
+    // Eliminate the variables (following the elimination ordering)
+    std::cout << "[HEUR] Begin variable elimination ..." << std::endl;
+    bucket& scalars = m_buckets.back();
+    for (size_t i = 0; i < num_vars - 1; ++i) {
+        size_t v = m_order[i];
+        variable vx = var(v);
+        std::cout << "[HEUR] Eliminating variable: " << v << std::endl;
+
+        // Partition the bucket into mini-buckets
+        std::vector<potential> partition = m_buckets[i].create_partition(m_ibound, m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+
+        // Moment-matching between the mini-buckets
+        if (m_matching && partition.size() > 1) { // match between multiple mini-buckets
+            moment_matching(vx, partition, rng);
+        }
+
+        // Eliminate the bucket variable from each mini-bucket
+        for (size_t j = 0; j < partition.size(); ++j) {
+
+            // Combine the potentials in the mini-bucket and eliminate the variable
+            potential& result = partition[j];
+
+            // Eliminate the variable (in-place)
+            result.elim_max(vx);
+
+            // Remove dominated vertices or approximate the potential
+            result.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+
+            // Place new potential in the appropriate bucket
+            if (result.nvar() == 0) { // i.e., scalar == empty scope
+                scalars.add_potential(result);
+                m_intermediate[num_vars - 1].push_back(result);
+            } else {
+                // Find the closest bucket that contains a variable in the potential's scope
+                for (size_t j = i + 1; j < num_vars - 1; ++j) {
+                    int y = m_buckets[j].get_variable();
+                    variable vy = var(y);
+                    if (result.vars().contains(vy)) {
+                        m_buckets[j].add_potential(result);
+                        m_augmented[y].push_back(result);
+                        break;
+                    } else {
+                        m_intermediate[y].push_back(result);
+                    }
+                }
+            }
+        } // done mini-buckets
+
+    } // done elimination
+
+    std::cout << "[HEUR] Finished variable elimination." << std::endl;
+
+    // After elimination, combine all scalars to determine global bound
+    potential r(1.0);
+    std::vector<potential>& pots = scalars.potentials();
+    for (size_t i = 0; i < pots.size(); ++i) {
+        r.multiply(pots[i]);
+    }
+    
+    // Prune dominated scalars (no need for approximation -- just scalars)
+    if (m_query_type == MERLIN_MAP_MAXIMAX) {
+        r.maximize();
+    } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
+        r.minimize();
+    }
+
+    // Check for singleton
+    if (r.p().size() > 1) {
+        std::cout << "[WMB] WARNING: more than one final scalars detected: " << r.p().size() << std::endl; 
+    }
+
+    // Get the best score
+    double global_bound = r.p()[0][0];
+    std::cout << "[HEUR] Global bound: " << global_bound << "(" << std::log10(global_bound) << ")" << std::endl; 
+    std::cout << "[HEUR] Finished building the heuristic" << std::endl;
+
+    if (m_verbose > 0) {
+        std::cout << "[DEBUG] Bucket structure:" << std::endl;
+        for (size_t i = 0; i < m_buckets.size(); ++ i) {
+            std::cout << "Bucket [" << m_buckets[i].get_variable() << "]" << std::endl;
+            std::vector<potential>& pots = m_buckets[i].potentials(); 
+            for (size_t j = 0; j < pots.size(); ++j) {
+                std::cout << pots[j] << std::endl;
+            } 
+        }
+        
+        std::cout << "[DEBUG] Intermediate structure:" << std::endl;
+        for (size_t i = 0; i < m_intermediate.size(); ++ i) {
+            std::cout << "Intermediate [" << i << "]" << std::endl;
+            std::vector<potential>& pots = m_intermediate[i]; 
+            for (size_t j = 0; j < m_intermediate[i].size(); ++j) {
+                std::cout << m_intermediate[i][j] << std::endl;
+            } 
+        }
+    }
+
+    return global_bound;
+}
+
+// Get the heuristic value for a variable during search given the current assignment
+double map2u::get_heuristic(size_t var, std::map<size_t, size_t>& assignment, bool upper) {
+
+	// variable 'var' is assumed to be already assigned (in 'assignment')
+	double h = 1.0;
+
+	// go over augmented and intermediate lists and combine all values
+	for (size_t i = 0; i < m_augmented[var].size(); ++i) {
+        h *= m_augmented[var][i].get_value(assignment, upper);
+	}
+	for (size_t i = 0; i < m_intermediate[var].size(); ++i) {
+		h *= m_intermediate[var][i].get_value(assignment, upper);
+	}
+
+	return h;    
 }
 
 // Depth-First Search
@@ -133,7 +276,7 @@ void map2u::dfs() {
     }
 
     // Assemble the solution
-    m_best_score = best_score;
+    m_best_cost = best_score;
     m_best_config.resize(num_vars);
     for (size_t i = 0; i < best_config.size(); ++i) {
         m_best_config[i] = best_config[i];
@@ -142,7 +285,7 @@ void map2u::dfs() {
     std::cout << "[DFS] Best solution: ";
     std::copy(best_config.begin(), best_config.end(), 
         std::ostream_iterator<size_t>(std::cout, " "));
-    std::cout << std::endl << "[DFS] Best score: " << best_score << " (" << std::log10(best_score) << ")" << std::endl;
+    std::cout << std::endl << "[DFS] Best cost: " << best_score << " (" << std::log10(best_score) << ")" << std::endl;
     std::cout << "[DFS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[DFS] Solutions found: " << num_sols << std::endl;
     std::cout << "[DFS] Number of nodes: " << num_nodes << std::endl;
@@ -150,7 +293,7 @@ void map2u::dfs() {
 
     // Save best solution (and score)
     m_best_config = best_config;
-    m_best_score = best_score;
+    m_best_cost = best_score;
 }
 
 // Moment-matching (max) in a mini-buckets partition
@@ -381,7 +524,7 @@ void map2u::wmb() {
     }
 
     // Get the best score
-    m_best_score = r.p()[0][0];
+    m_best_cost = r.p()[0][0];
 
     // /*
     std::cout << "[CWMB] Generating the MAP configuration (bottom-up) ..." << std::endl;
@@ -438,7 +581,7 @@ void map2u::wmb() {
         std::cout << "[CWMB] Best solution: ";
         std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<int>(std::cout, " "));
         std::cout << std::endl;
-        std::cout << "[CWMB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+        std::cout << "[CWMB] Best cost: " << m_best_cost << " (" << std::log10(m_best_cost) << ")" << std::endl;
         std::cout << "[CWMB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
         std::cout << "[CWMB] Timeout: no" << std::endl;
     } else {
@@ -456,6 +599,16 @@ std::string map2u::to_string(variable_set &vars, std::map<size_t, size_t> &confi
     }
 
     return ss.str();
+}
+
+void map2u::set_cache_context(search_node* n, const std::set<size_t>& ctxt) const {
+
+    std::stringstream signature;
+    for (std::set<size_t>::const_iterator si = ctxt.begin(); si != ctxt.end(); ++si) {
+        signature << "x" << *si << "=" << m_assignment.at(*si) << ";";
+    }
+
+	n->set_context(signature.str());
 }
 
 search_node* map2u::next_leaf() {
@@ -511,11 +664,63 @@ bool map2u::do_process(search_node* n) {
 }
 
 bool map2u::do_caching(search_node* n) {
-    return false;
+	assert(n);
+	int var = n->get_variable();
+	pseudotree_node* ptnode = m_pseudotree->get_node(var);
+
+	if (n->get_type() == MERLIN_NODE_AND) { // AND node -> reset associated adaptive cache tables
+
+        // no caching
+
+	} else { // OR node, try actual caching
+
+		if (!ptnode->get_parent()) {
+			return false;
+        }
+
+		if (ptnode->get_context().size() <= ptnode->get_parent()->get_context().size()) {
+
+			// add cache context information
+            set_cache_context(n, ptnode->get_context());
+
+			// try to get value from cache
+			try {
+				// will throw int(UNKNOWN) if not found
+				std::pair<double, std::vector<int>> entry = m_search_space->read(var, n->get_context());
+				n->set_cost( entry.first ); // set value
+				n->set_assignment( entry.second ); // set assignment
+				n->set_leaf(true); // mark as leaf
+				++m_cache_hits;
+
+				return true;
+			} catch (...) { // cache lookup failed
+				n->set_cachable(); // mark for caching later
+			}
+		}
+	} // if on node type
+
+	return false; // default, no caching applied
+
 }
 
 bool map2u::do_pruning(search_node* n) {
-    return false; 
+	assert(n);
+
+	if (can_prune(n)) {
+		n->set_leaf(true);
+        n->set_pruned();
+        if (n->get_type() == MERLIN_NODE_OR) {
+			if (isnan(n->get_cost())) { // value could be set by LDS
+				n->set_cost(0.0);
+            }
+		} else if (n->get_type() == MERLIN_NODE_AND) {
+			n->set_cost(0.0); // dead end
+		}
+
+		return true;
+	}
+
+	return false; // default false}
 }
 
 bool map2u::do_expand(search_node* n) {
@@ -558,10 +763,47 @@ bool map2u::do_expand(search_node* n) {
 	return false; // default false (children generated)
 }
 
-void map2u::heuristic(search_node* n) {
+double map2u::heuristic(search_node* n) {
 
     // Safety checks
     assert(n && n->get_type() == MERLIN_NODE_OR);
+
+    // Get the OR node variable
+	int var = n->get_variable();
+	std::vector<double> dv;
+    dv.resize(m_domains[var] * 2);
+
+    bool upper = (m_query_type == MERLIN_MAP_MAXIMAX) ? true : false;
+    double h = -INFINITY; // the new OR nodes h value
+    std::map<size_t, size_t> assignment = m_assignment;
+	std::list<potential>& funs = m_pseudotree->get_potentials(var);
+	for (size_t k = 0; k < m_domains[var]; ++k) {
+		assignment[var] = k;
+
+		// compute heuristic value
+		dv[2 * k] = get_heuristic(var, assignment, upper);
+
+		// precompute weight value
+		double w = 1.0;
+        std::list<potential>::iterator li = funs.begin();
+		for (; li != funs.end(); ++li) {
+            potential& p = (*li);
+			w *= p.get_value(assignment, upper);
+		}
+
+		// store label and heuristic into cache table
+		dv[2 * k + 1] = w; // label
+		dv[2 * k] *= w; // heuristic (includes label)
+
+        if (dv[2 * k] > h) {
+            h = dv[2 * h]; // keep max. for OR node heuristic (MAP var)
+        }
+	}
+
+	n->set_heur(h);
+	n->set_cache(dv);
+
+	return h;    
 }
 
 bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
@@ -649,7 +891,64 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
 } 
 
 bool map2u::can_prune(search_node* n) {
-    return false;
+
+	// heuristic is an upper bound, hence can use to prune if value=0
+	if (n->get_heur() == 0.0) {
+		++m_num_deadends;
+		return true;
+	}
+
+	search_node* curAND;
+	search_node* curOR;
+	double curPSTVal;
+
+	if (n->get_type() == MERLIN_NODE_AND) {
+		curAND = n;
+		curOR = n->get_parent();
+		curPSTVal = curAND->get_heur(); // includes label
+	} else { // NODE_OR
+		curAND = NULL;
+		curOR = n;
+		curPSTVal = curOR->get_heur(); // n->getHeur()
+	}
+
+	std::list<search_node*> notOptOR; // marks nodes for tagging as possibly not optimal
+
+	// up to root node, if we have to
+	while (curOR->get_parent()) {
+
+		if ( curPSTVal <= curOR->get_cost() ) {
+			for (std::list<search_node*>::iterator it = notOptOR.begin(); it != notOptOR.end(); ++it) {
+				(*it)->set_optimal(false); // mark as possibly not optimal
+            }
+
+			++m_num_deadends;
+			return true;// pruning is possible!
+		}
+
+		notOptOR.push_back(curOR);
+
+		// climb up, update values
+		curAND = curOR->get_parent();
+
+		// collect AND node label
+		curPSTVal *= curAND->get_weight();
+		// incorporate already solved sibling OR nodes
+		curPSTVal *= curAND->get_subsolved();
+		// incorporate new not-yet-solved sibling OR nodes through their heuristic
+		std::vector<search_node*>& children = curAND->get_children();
+		for (size_t i = 0; i < children.size(); ++i) {
+			if (!children[i] || children[i] == curOR) {
+                continue;
+            } else {
+                curPSTVal *= children[i]->get_heur();
+            }
+		}
+		curOR = curAND->get_parent();
+	}
+
+	// default, no pruning possible
+	return false;
 }
 
 
@@ -672,16 +971,15 @@ void map2u::bnb() {
     size_t num_vars = nvar();
     std::mt19937 rng(1234);
     size_t num_sols = 0;
-    double best_score = -1;
+    size_t dummy = num_vars; // dummy variable
+    double best_cost = -1;
     bool timeout = false;
-    std::vector<int> best_config(num_vars, -1);
     double* _EmergencyMem = new double[10]; // a memory buffer
 
     // Create the minfill elimination ordering (for precompiled heuristics)
-    std::vector<size_t> elim_order;
-    elim_order = order2();
+    m_order = order2();
     std::cout << "[BB] Elimination order: ";
-    std::copy(elim_order.begin(), elim_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::copy(m_order.begin(), m_order.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
     std::cout << "[BB] Induced width: " << m_width << std::endl;
     std::cout << "[BB] MB ibound: " << m_ibound << std::endl;
@@ -692,13 +990,19 @@ void map2u::bnb() {
 
     // Branch and bound search
     m_solved = false;
+    m_best_cost = -1;
+    m_cache_hits = 0;
+    m_num_deadends = 0;
 	m_num_nodes = std::make_pair(0, 0);
 
     // Create the pseudo tree
     m_pseudotree = std::make_unique<pseudotree>();
     m_pseudotree->init(num_vars);
-    m_pseudotree->build(g, elim_order, true);
-    
+    m_pseudotree->build(g, m_order, true);
+    m_pseudotree->reset_potentials(m_factors); // includes the dummy variable ?
+    m_order.push_back(dummy);
+
+    // Output the pseudo tree
     if (m_verbose > 0) {
         m_pseudotree->dump(std::cout);
     }
@@ -710,22 +1014,34 @@ void map2u::bnb() {
     std::cout << "[BB] Pseudo tree width: " << m_pseudotree->get_width() << std::endl;
     std::cout << "[BB] Pseudo tree height: " << m_pseudotree->get_height() << std::endl;
 
+    // Build the heuristic
+    double h = build_heuristic(); // get the global bound
+
     try {
 
+        // Init the search space
+        m_search_space = std::make_unique<search_space>();
+        m_search_space->init(num_vars);
+
 		// Init the root of the search space
-        // size_t root_var = m_pseudotree->get_root()->get_variable();
-        // search_node* root = new search_node(root_var, 0, MERLIN_NODE_AND);
-        // m_stack.push(root);
-        // m_propagator = std::make_unique<bound_propagator>();
+        size_t root_var = m_pseudotree->get_root()->get_variable();
+        search_node* root = new search_node(root_var, 0, MERLIN_NODE_AND);
+        root->set_heur(h);
+        root->set_weight(1.0);
+        m_stack.push(root);
 
+        // Init the bound propagator
+        m_propagator = std::make_unique<bound_propagator>();
+        m_propagator->init(m_start_time, m_pseudotree.get(), m_search_space.get());
 
-        // // Search
-		// search_node* n = next_leaf();
-		// while (n != NULL) { // throws timeout
-		// 	m_propagator->propagate(n, true); // true = report solutions
-		// 	m_best_score = m_propagator->get_best_cost();
-		// 	n = next_leaf();
-		// }
+        // Search
+		search_node* n = next_leaf();
+		while (n != NULL) { // throws timeout
+			m_propagator->propagate(n, true); // true = report solutions
+			m_best_cost = m_propagator->get_best_cost();
+            m_best_config = m_propagator->get_best_config();
+            n = next_leaf();
+		}
 
 	// 	// Proved optimality
 		m_solved = true;
@@ -737,18 +1053,12 @@ void map2u::bnb() {
         timeout = true;
     }
 
-    // Assemble the solution
-    m_best_score = best_score;
-    m_best_config.resize(num_vars);
-    for (size_t i = 0; i < best_config.size(); ++i) {
-        m_best_config[i] = best_config[i];
-    }
-
     std::cout << "[BB] Finished search" << std::endl;
+    std::cout << "[BB] Problem solved: " << (m_solved ? "true" : "false") << std::endl;
     std::cout << "[BB] Best solution: ";
     std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
-    std::cout << "[BB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[BB] Best cost: " << m_best_cost << " (" << std::log10(m_best_cost) << ")" << std::endl;
     std::cout << "[BB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[BB] Solutions found: " << num_sols << std::endl;
     std::cout << "[BB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
@@ -772,7 +1082,7 @@ void map2u::aobb() {
     std::cout << "[AOBB] Best solution: ";
     std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
-    std::cout << "[AOBB] Best score: " << m_best_score << " (" << std::log10(m_best_score) << ")" << std::endl;
+    std::cout << "[AOBB] Best cost: " << m_best_cost << " (" << std::log10(m_best_cost) << ")" << std::endl;
     std::cout << "[AOBB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[AOBB] Solutions found: " << num_sols << std::endl;
     std::cout << "[AOBB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
@@ -807,7 +1117,7 @@ void map2u::write_solution(std::ostream& out, int output_format) {
         out << " \"task\" : \"MAP\", ";
         out << " \"value\" : " << std::fixed
             << std::setprecision(MERLIN_PRECISION)
-            << (m_best_score) << ", ";
+            << (m_best_cost) << ", ";
         out << " \"status\" : \"true\", ";
         out << " \"solution\" : [ ";
 

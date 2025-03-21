@@ -28,6 +28,7 @@
 
 #include "base.h"
 #include "search_node.h"
+#include "search_space.h"
 #include "pseudotree.h"
 namespace merlin {
 
@@ -46,6 +47,14 @@ public:
     inline double get_best_cost() {
         return m_best_cost;
     };
+    inline std::vector<int> get_best_config() {
+        return m_best_config;
+    }
+    inline void init(double start_time, pseudotree* pt, search_space* s) {
+        m_start_time = start_time;
+        m_pseudotree = pt;
+        m_space = s;
+    }
 
 protected:
     /// Members
@@ -53,9 +62,10 @@ protected:
     bool m_caching;                                 ///< Enable caching
     std::vector<std::vector<int>> m_solutions;      ///< Solutions
     double m_best_cost;                             ///< Best solution cost so far
+    std::vector<int> m_best_config;                 ///< Best solution so far
     pseudotree* m_pseudotree;                       ///< Pseudo tree
     double m_start_time;                            ///< Start time
-
+    search_space* m_space;                          ///< Search space
 };
 
 } // end namespace

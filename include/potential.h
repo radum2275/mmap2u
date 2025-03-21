@@ -66,6 +66,7 @@ public:
     ///
     potential() {
         // empty potential
+        original_ = true;
     }
     
     /// @brief Creates a scalar potential
@@ -73,6 +74,7 @@ public:
     potential(value s) {
         p_.push_back(factor(s));
         // q_.push_back(factor(s));
+        original_ = true;
     };
 
 	///
@@ -81,7 +83,7 @@ public:
 	/// Constructs a copy from an object of the same type.
 	///
 	potential(potential const& f) :
-			v_(f.v_), p_(f.p_), q_(f.q_) {
+			v_(f.v_), p_(f.p_), q_(f.q_), original_(f.original_) {
 	};
 
 	///
@@ -104,6 +106,7 @@ public:
 			v_ = rhs.v_;
 			p_ = rhs.p_;
 			q_ = rhs.q_;
+            original_ = rhs.original_;
 		}
 		return *this;
 	};
@@ -808,7 +811,7 @@ public:
 
 	/// @brief Get the size of the potential
 	/// @return the number of elements in the potential
-	size_t size() const {
+	inline size_t size() const {
 		return p_.size();
 	}
 
@@ -819,13 +822,37 @@ public:
 	/// \param i 	Index of the table element.
 	/// \param v 	New value to be written in the table.
 	///		
-	void set_p(vsize i, const factor& v) {
+	inline void set_p(vsize i, const factor& v) {
 		p_.at(i) = v;
 	}
-	void set_q(vsize i, const factor& v) {
+	inline void set_q(vsize i, const factor& v) {
 		q_.at(i) = v;
 	}
 
+    inline void set_original(bool f) {
+        original_ = f;
+    }
+    inline bool is_original() {
+        return original_;
+    }
+
+    /// @brief Get the upper/lower probability corresponding to a variable assignment
+    /// @param assignment is the variable assignment
+    /// @param upper indicates the upper or lower probability
+    /// @return a real value representing the upper/lower probability
+    inline double get_value(std::map<size_t, size_t>& assignment, bool upper) {
+        double result = (upper ? -INFINITY : INFINITY);
+        for (size_t i = 0; i < p_.size(); ++i) {
+            double v = p_[i].get_value(assignment);
+            if (upper) {
+                result = std::max(v, result);
+            } else {
+                result = std::min(v, result);
+            }
+        }
+
+        return result;
+    }
 
 	///
 	/// \brief Output operator (friend).
@@ -875,6 +902,7 @@ protected:
 	variable_set v_;					///< Variable list vector (*scope*).
 	std::vector<factor> p_;				///< List of factors (the p-component)
     std::vector<factor> q_;             ///< List of factors (the q-component)
+    bool original_;                     ///< Original potential (true by default)
 
 };
 

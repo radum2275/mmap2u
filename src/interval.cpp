@@ -123,6 +123,7 @@ potential interval::to_potential(bool has_q) {
 		} // end while
     }
 
+    pot.set_original(true);
     return pot;
 }
 

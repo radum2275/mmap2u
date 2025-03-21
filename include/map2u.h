@@ -31,6 +31,7 @@
 #include "potential.h"
 #include "bucket.h"
 #include "search_node.h"
+#include "search_space.h"
 #include "bound_propagator.h"
 #include "pseudotree.h"
 
@@ -238,9 +239,15 @@ protected:
 	std::string to_string(variable_set& vars, std::map<size_t, size_t>& config);
 
 	///
-	/// \brief Precompile the weighted mini-bucket heuristics for MAP
+	/// \brief Build the weighted mini-bucket heuristics
 	///
-	void precompile_heuristics();
+	double build_heuristic();
+
+	/// @brief Get the heuristic value corresponding to a variable
+	/// @param var is the index of the variable
+	/// @param assignment is the current variable assignment
+	/// @return a real value representing the heuristic value
+	double get_heuristic(size_t var, std::map<size_t, size_t>& assignment, bool upper);
 
 	///
 	/// \brief Moment-matching (max) in a mini-buckets partition
@@ -262,19 +269,20 @@ protected:
 	bool do_expand(search_node* n);
 	bool can_prune(search_node* n);
 	bool generate_children(search_node* n, std::vector<search_node*>& chi);
-	void heuristic(search_node* n);
+	double heuristic(search_node* n);
+	void set_cache_context(search_node* n, const std::set<size_t>& ctxt) const;
 
 protected:
 	// Members:
 
-	variable_order_t m_order;						///< Variable elimination order
+	std::vector<size_t> m_order;					///< Variable elimination order
 	std::map<size_t, size_t> m_evidence;			///< Evidence
 	std::vector<size_t> m_query;					///< Query
 	std::string m_search_method;					///< Search method (dfs, bnb, aobb, bfs, aobf)
 	size_t m_verbose;								///< Verbosity level
 	size_t m_seed;									///< Random number generator seed
 	std::vector<int> m_best_config;					///< Best MAP config
-	double m_best_score;							///< Score of the best MAP config
+	double m_best_cost;								///< Cost of the best MAP config
 	double m_threshold;								///< Threshold used for numerical precision
 	size_t m_query_type;							///< MAP type (maximin, maximax)
 	double m_time_limit;							///< Time limit (default -1)
@@ -288,10 +296,17 @@ protected:
 	std::stack<search_node*> m_stack; 				///< Search stack
 	std::unique_ptr<bound_propagator> m_propagator;	///< Bound propagator
 	bool m_solved; 									///< Solved optimally
+	size_t m_cache_hits;							///< Number of cache hits
+	size_t m_num_deadends;							///< Number of deadends
 	std::map<size_t, size_t> m_assignment;			///< Assignment during search
 	std::pair<size_t, size_t> m_num_nodes;			///< Number of node (AND, OR)
 	std::unique_ptr<pseudotree> m_pseudotree;		///< Pseudo tree
 	std::vector<size_t> m_domains;					///< Variable domains (including dummy)
+	std::unique_ptr<search_space> m_search_space;	///< The search space
+
+	std::vector<bucket> m_buckets;						///< The bucket structure
+	std::vector<std::vector<potential>> m_intermediate;	///< The intermediate potentials
+	std::vector<std::vector<potential>> m_augmented;	///< The augmented buckets
 };
 
 } // namespace

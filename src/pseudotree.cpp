@@ -111,6 +111,35 @@ void pseudotree::build(graph& g, std::vector<size_t>& order, bool is_chain) {
 	m_order.push_back(dummy); // add dummy variable as last node in ordering
 }
 
+// Reset the potentials associated with each variable
+void pseudotree::reset_potentials(std::vector<interval>& factors) {
+    
+    // Reset the previous mapping
+    m_potentials.clear();
+    m_potentials.resize(m_nodes.size());
+
+    std::vector<interval>::iterator vi = factors.begin();
+	for (; vi != factors.end(); ++vi) {
+        interval& f = (*vi);
+        const variable_set& scope = f.vars();
+		if (scope.size() == 0) {
+            size_t v = m_order.back();
+			m_potentials[v].push_back(f.to_potential(false));
+			continue;
+		}
+
+		std::vector<size_t>::iterator it = m_order.begin();
+		for (;; ++it) {
+            size_t v = (*it);
+			if (scope.has_variable(v)) {
+				m_potentials[v].push_back(f.to_potential(false));
+				break;
+			}
+		}
+	}
+
+}
+
 // Update the contexts of the nodes
 void pseudotree::update_contexts(graph& g) {
 

@@ -691,6 +691,10 @@ public:
 		return std::binary_search(m_v.begin(), m_v.end(), v.label());
 	}
 
+	bool has_variable(size_t v) const {
+		return std::binary_search(m_v.begin(), m_v.end(), v);
+	}
+
 	///
 	/// \brief Output operator.
 	///

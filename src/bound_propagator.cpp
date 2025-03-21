@@ -97,12 +97,11 @@ bound_propagator::~bound_propagator() {
                 if (prev->num_children() <= 1) {
 
                     // prev is OR node, try to cache
-                    if (m_caching && prev->is_cachable()) {
+                    if (m_caching && prev->is_cachable() && prev->is_optimal()) {
                         try {
-                            // TODO: fix caching!!
-                            // m_space->cache->write(prev->get_variable(),
-                            //     prev->get_context(), prev->get_cost(),
-                            //     prev->get_assignment() );
+                            m_space->write(prev->get_variable(),
+                                prev->get_context(), prev->get_cost(),
+                                prev->get_assignment() );
 
                         } catch (...) { /* tried to cache NaN value */
                         }
@@ -172,7 +171,7 @@ bound_propagator::~bound_propagator() {
             update_solution(timestamp,
                     prev->get_value(),
                     prev->get_assignment(),
-                    std::make_pair(0, 0));
+                    m_space->get_num_nodes());
         }
     }
 

@@ -58,6 +58,7 @@ std::vector<potential> bucket::create_partition(int ibound, size_t query_type,
                 mb.multiply(pot);
                 found = true;
                 mb.approximate(query_type, potential_approx, potential_size, eps);
+                mb.set_original(false);
                 break; // found the mini-bucket
             }
         }
@@ -66,6 +67,7 @@ std::vector<potential> bucket::create_partition(int ibound, size_t query_type,
         if (!found) {
             potential new_mb(1.0);
             new_mb.multiply(pot);
+            new_mb.set_original(false);
             partition.push_back(new_mb);
         }
     }
