@@ -840,7 +840,7 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
 
         if (chi.empty()) {
             n->set_leaf(true); // terminal node
-            n->set_cost(1);
+            n->set_cost(1.0);
             return true; // no children
         }
 
@@ -876,7 +876,7 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
     
         if (chi.empty()) { // deadend
             n->set_leaf(true);
-            n->set_cost(0);
+            n->set_cost(0.0);
             return true; // no children
         }
     
