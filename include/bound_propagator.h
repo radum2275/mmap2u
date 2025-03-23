@@ -50,10 +50,12 @@ public:
     inline std::vector<int> get_best_config() {
         return m_best_config;
     }
-    inline void init(double start_time, pseudotree* pt, search_space* s) {
+    inline void init(double start_time, pseudotree* pt, search_space* s, bool caching = false) {
         m_start_time = start_time;
         m_pseudotree = pt;
         m_space = s;
+        m_caching = caching;
+        m_best_cost = NAN; // NaN
     }
 
 protected:

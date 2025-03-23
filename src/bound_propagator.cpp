@@ -25,7 +25,7 @@ namespace merlin {
  
 // Constructor
 bound_propagator::bound_propagator() {
-    m_caching = false;
+    m_caching = false; // default no caching
 }
 
 bound_propagator::~bound_propagator() {
@@ -55,7 +55,7 @@ bound_propagator::~bound_propagator() {
     bool del = (upper_limit != n) ? true : false;
 
 //#ifdef DEBUG
-//	cout << " --- begin propagation:" << endl;
+	std::cout << " --- begin propagation:" << std::endl;
 //#endif
 
     // Going all the way to the root, if we have to
@@ -74,7 +74,7 @@ bound_propagator::~bound_propagator() {
                 std::vector<search_node*>& children = cur->get_children();
                 for (size_t i = 0; i < children.size(); ++i) {
                     if (children[i]) {
-                        d *= children[i]->get_value();
+                        d *= children[i]->get_cost();
                     }
                 }
 
@@ -82,7 +82,7 @@ bound_propagator::~bound_propagator() {
                 cur->set_cost(d);
 
     //#ifdef DEBUG
-    //			cout << "   current AND node updated: " << cur->toString() << endl;
+    			std::cout << "   current AND node updated: " << cur->to_string() << std::endl;
     //#endif
 
                 // Not all OR children solved yet, propagation stops here
@@ -129,7 +129,7 @@ bound_propagator::~bound_propagator() {
             }
 
     //#ifdef DEBUG
-    //			cout << "   current OR node updated: " << cur->toString() << endl;
+    			std::cout << "   current OR node updated: " << cur->to_string() << std::endl;
     //#endif
 
             if (del) {
@@ -159,7 +159,7 @@ bound_propagator::~bound_propagator() {
     } while (cur); // until cur==NULL, i.e. 'parent' of root
 
 //#ifdef DEBUG
-//	cout << " --- end propagation." << endl;
+	std::cout << " --- end propagation." << std::endl;
 //#endif
 
     // propagated up to root node, update tuple as well
@@ -169,7 +169,7 @@ bound_propagator::~bound_propagator() {
             double timestamp = timeSystem() - m_start_time;
             m_solutions.push_back(prev->get_assignment());
             update_solution(timestamp,
-                    prev->get_value(),
+                    prev->get_cost(),
                     prev->get_assignment(),
                     m_space->get_num_nodes());
         }
@@ -195,14 +195,12 @@ bound_propagator::~bound_propagator() {
  * records it into 'end' for later use */
 void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
 
+    // Safety checks
 	assert(start && end);
 
 	int end_var = end->get_variable();
 	const std::set<size_t>& end_subprob = m_pseudotree->get_node(end_var)->get_subproblem();
 
-	// Get variable map for end node
-	std::vector<int> end_var_map; // = m_pseudotree->get_node(end_var)->get_subproblem_map();
-	
     // Allocate assignment in end node
 	std::vector<int>& assig = end->get_assignment();
 	assig.resize(end_subprob.size(), UNKNOWN);
@@ -214,7 +212,7 @@ void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
 		if (curr->get_type() == MERLIN_NODE_AND) {
 			curr_val = curr->get_value();
 			if (curr_val != UNKNOWN) {
-			    assig.at(end_var_map.at(curr_var)) = curr_val;
+			    assig.at(curr_var) = curr_val;
             }
 		}
 
@@ -225,8 +223,10 @@ void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
 			std::vector<int>::const_iterator itVal = curr->get_assignment().begin();
 
 			for(; itVar!= curr_subprob.end(); ++itVar, ++itVal ) {
-				if (*itVal != UNKNOWN) {
-				    assig[end_var_map[*itVar]] = *itVal;
+                size_t var = *itVar;
+                int val = *itVal;
+                if (*itVal != UNKNOWN) {
+                    assig.at(var) = val;
                 }
 			}
 

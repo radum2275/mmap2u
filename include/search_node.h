@@ -190,6 +190,25 @@ class search_node {
         inline std::string get_context() {
             return m_context; // the value assignment to the context variables
         }
+        inline std::string to_string() {
+            std::ostringstream oss;
+            if (m_type == MERLIN_NODE_AND) {
+                oss << "AND node: x" << m_variable << "=" << m_value << " [ "
+                    << "  w = " << m_weight
+                    << ", h = " << m_heur
+                    << ", v = " << m_cost
+                    << ", s = " << m_subsolved << " ]"
+                    ;
+            } else {
+                oss << "OR node: x" << m_variable << " [ "
+                    << "  h = " << m_heur
+                    << ", v = " << m_cost << " ]"
+                    ;
+            
+            }
+
+            return oss.str();
+        }
     };
 
 

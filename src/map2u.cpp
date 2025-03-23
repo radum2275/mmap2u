@@ -663,6 +663,7 @@ bool map2u::do_process(search_node* n) {
 	return false; // default
 }
 
+// Retrieve an OR node from the cache if previously cached (context-based)
 bool map2u::do_caching(search_node* n) {
 	assert(n);
 	int var = n->get_variable();
@@ -720,7 +721,7 @@ bool map2u::do_pruning(search_node* n) {
 		return true;
 	}
 
-	return false; // default false}
+	return false; // default false
 }
 
 bool map2u::do_expand(search_node* n) {
@@ -821,6 +822,8 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
         // Increase AND node expansions
         m_num_nodes.first += 1;
 
+        std::cout << "Expanding AND node: " << n->to_string() << std::endl;
+
         // Create new OR children (going in reverse due to reversal on stack)
         std::vector<pseudotree_node*>::const_reverse_iterator it = ptnode->get_children().rbegin();
         for (; it != ptnode->get_children().rend(); ++it) {
@@ -836,6 +839,8 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
             heuristic(c);
             c->set_depth(n->get_depth() + 1);
             chi.push_back(c);
+
+            std::cout << "  - OR child: " << c->to_string() << std::endl;
 
         } // for loop over new OR children
 
@@ -856,7 +861,9 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
     
         // Increase OR node expansions
         m_num_nodes.second += 1;
-    
+
+        std::cout << "Expanding OR node: " << n->to_string() << std::endl;
+        
         // Retrieve precomputed weights and heuristic values
         std::vector<double>& heur = n->get_cache();
         for (int val = m_domains[var] - 1; val >= 0; --val) {
@@ -867,13 +874,15 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
     
             search_node* c = new search_node(var, val, MERLIN_NODE_AND); // uses cached label
             c->set_parent(n);
-            
+
             // Set cached heur. value (includes the weight)
             c->set_weight(heur[2 * val + 1]);
             c->set_heur(heur[2 * val]);
             c->set_depth(n->get_depth() + 1);
             
             chi.push_back(c);
+
+            std::cout << "  - AND child: "<< c->to_string() << std::endl;
         }
     
         if (chi.empty()) { // deadend
@@ -893,6 +902,8 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
 } 
 
 bool map2u::can_prune(search_node* n) {
+
+    return false; // disable pruning for now
 
 	// heuristic is an upper bound, hence can use to prune if value=0
 	if (n->get_heur() == 0.0) {
@@ -1048,9 +1059,11 @@ void map2u::bnb() {
     m_search_space = std::make_unique<search_space>();
     m_search_space->init(num_vars);
 
-    // Init the bound propagator
+    // Init the bound propagator (set caching as well)
     m_propagator = std::make_unique<bound_propagator>();
-    m_propagator->init(m_start_time, m_pseudotree.get(), m_search_space.get());
+    m_propagator->init(m_start_time, m_pseudotree.get(), m_search_space.get(), false);
+
+    std::cout << "[BB] Begin search..." << std::endl;
 
     try {
 
@@ -1065,7 +1078,6 @@ void map2u::bnb() {
 		while (n != NULL) { // throws timeout
 			m_propagator->propagate(n, true); // true = report solutions
 			m_best_cost = m_propagator->get_best_cost();
-            m_best_config = m_propagator->get_best_config();
             n = next_leaf();
 		}
 
@@ -1079,7 +1091,7 @@ void map2u::bnb() {
         timeout = true;
     }
 
-    std::cout << "[BB] Finished search" << std::endl;
+    std::cout << "[BB] Finished search." << std::endl;
     std::cout << "[BB] Problem solved: " << (m_solved ? "true" : "false") << std::endl;
     std::cout << "[BB] Best solution: ";
     std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
