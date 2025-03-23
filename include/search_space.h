@@ -67,14 +67,14 @@ public:
         return m_num_nodes;
     }
 
-    /// @brief Add an AND node
-    inline void add_and_node() {
-        m_num_nodes.first += 1;
-    }
-
-    /// @brief Add an OR node
-    inline void add_or_node() {
-        m_num_nodes.second += 1;
+    /// @brief Add a node to the search space (count).
+    /// @param type is the node type (AND/OR)
+    inline void add_node(size_t type) {
+        if (type == MERLIN_NODE_AND) {
+            m_num_nodes.first += 1;
+        } else {
+            m_num_nodes.second += 1;
+        }
     }
 
     /// @brief Initialize the search space.

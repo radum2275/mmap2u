@@ -50,6 +50,12 @@ public:
     inline std::vector<int> get_best_config() {
         return m_best_config;
     }
+    inline size_t get_num_solutions() {
+        return m_solutions.size();
+    }
+    inline std::vector<std::vector<int>>& get_solutions() {
+        return m_solutions;
+    }
     inline void init(double start_time, pseudotree* pt, search_space* s, bool caching = false) {
         m_start_time = start_time;
         m_pseudotree = pt;

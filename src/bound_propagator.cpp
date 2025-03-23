@@ -198,8 +198,12 @@ void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
     // Safety checks
 	assert(start && end);
 
+    // get the subproblem vars for end node
 	int end_var = end->get_variable();
 	const std::set<size_t>& end_subprob = m_pseudotree->get_node(end_var)->get_subproblem();
+
+  	// get variable map for end node
+	std::vector<int> end_var_map = m_pseudotree->get_node(end_var)->get_subproblem_map();
 
     // Allocate assignment in end node
 	std::vector<int>& assig = end->get_assignment();
@@ -212,7 +216,7 @@ void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
 		if (curr->get_type() == MERLIN_NODE_AND) {
 			curr_val = curr->get_value();
 			if (curr_val != UNKNOWN) {
-			    assig.at(curr_var) = curr_val;
+			    assig.at(end_var_map.at(curr_var)) = curr_val;
             }
 		}
 
@@ -226,7 +230,7 @@ void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
                 size_t var = *itVar;
                 int val = *itVal;
                 if (*itVal != UNKNOWN) {
-                    assig.at(var) = val;
+                    assig[end_var_map[var]] = val;
                 }
 			}
 
@@ -244,6 +248,7 @@ void bound_propagator::update_solution(double timestamp, double cost,
 
     if ( (isnan(m_best_cost) || cost > m_best_cost) ) {
         m_best_cost = cost;
+        m_best_config = sol;
         std::cout << "[" << std::setw(9) << timestamp << "] u "
             << std::setw(12) << num_nodes.first << " "
             << std::setw(12) << num_nodes.second << " "

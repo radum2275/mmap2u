@@ -100,7 +100,7 @@ void pseudotree::build(graph& g, std::vector<size_t>& order, bool is_chain) {
 	m_root = p;
 
     // Update the subproblem variables (recursively)
-    m_root->update_subproblem();
+    m_root->update_subproblem(m_nodes.size()); // +1 dummy variable
 
     // Update contexts if chain pseudo tree
     if (is_chain) {
@@ -318,7 +318,7 @@ void pseudotree::dump_edges_for_dot(std::ofstream& outfile) {
 }
 
 // Update the subproblem rooted at the node
-const std::set<size_t>& pseudotree_node::update_subproblem() {
+const std::set<size_t>& pseudotree_node::update_subproblem(size_t num_vars) {
 
 	// Clear current subproblem
 	m_subproblem.clear();
@@ -330,9 +330,17 @@ const std::set<size_t>& pseudotree_node::update_subproblem() {
 			it != m_children.end(); ++it) {
         
         pseudotree_node* ch = (*it);
-		const std::set<size_t>& child_vars = ch->update_subproblem();
+		const std::set<size_t>& child_vars = ch->update_subproblem(num_vars);
         std::copy(child_vars.begin(), child_vars.end(), 
             std::inserter(m_subproblem, m_subproblem.end()));
+	}
+
+    m_subproblem_map.clear();
+	m_subproblem_map.resize(num_vars, UNKNOWN);
+	size_t i = 0;
+	for (std::set<size_t>::const_iterator it = m_subproblem.begin();
+			it != m_subproblem.end(); ++it, ++i) {
+		m_subproblem_map[*it] = i;
 	}
 
 	// Return a const reference

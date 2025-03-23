@@ -725,7 +725,9 @@ bool map2u::do_pruning(search_node* n) {
 }
 
 bool map2u::do_expand(search_node* n) {
-	assert(n);
+
+    // Safety checks
+	assert(n != NULL);
 	std::vector<search_node*> expanded;
 
 	if (n->get_type() == MERLIN_NODE_AND) {  // AND node
@@ -820,7 +822,7 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
         pseudotree_node* ptnode = m_pseudotree->get_node(var);
 
         // Increase AND node expansions
-        m_num_nodes.first += 1;
+        m_search_space->add_node(MERLIN_NODE_AND);
 
         std::cout << "Expanding AND node: " << n->to_string() << std::endl;
 
@@ -860,7 +862,7 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
         int var = n->get_variable();
     
         // Increase OR node expansions
-        m_num_nodes.second += 1;
+        m_search_space->add_node(MERLIN_NODE_OR);
 
         std::cout << "Expanding OR node: " << n->to_string() << std::endl;
         
@@ -868,7 +870,7 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
         std::vector<double>& heur = n->get_cache();
         for (int val = m_domains[var] - 1; val >= 0; --val) {
             // early pruning if heuristic is zero (since it's an upper bound)
-            if (heur[2 * var] == 0) { // 2*i=heuristic, 2*i+1=label
+            if (heur[2 * val] == 0) { // 2*i=heuristic, 2*i+1=label
                 continue;
             }
     
@@ -977,9 +979,11 @@ search_node* map2u::init_search_space(double global_bound, double global_constan
 	search_node* root = new search_node(root_var, -1, MERLIN_NODE_OR);
 	root->set_heur(global_bound);
 	m_search_space->set_root(root);
+    m_search_space->add_node(MERLIN_NODE_OR);
 
 	// create dummy AND node (domain size 1) with global constant as label
 	search_node* next = new search_node(root_var, 0, MERLIN_NODE_AND);
+    m_search_space->add_node(MERLIN_NODE_AND);
     next->set_parent(root);
     next->set_weight(global_constant);
 	root->add_child(next);
@@ -1007,9 +1011,7 @@ void map2u::bnb() {
     // Number of variables
     size_t num_vars = nvar();
     std::mt19937 rng(1234);
-    size_t num_sols = 0;
     size_t dummy = num_vars; // dummy variable
-    double best_cost = -1;
     bool timeout = false;
     double* _EmergencyMem = new double[10]; // a memory buffer
 
@@ -1030,7 +1032,6 @@ void map2u::bnb() {
     m_best_cost = -1;
     m_cache_hits = 0;
     m_num_deadends = 0;
-	m_num_nodes = std::make_pair(0, 0);
 
     // Create the pseudo tree
     m_pseudotree = std::make_unique<pseudotree>();
@@ -1078,6 +1079,7 @@ void map2u::bnb() {
 		while (n != NULL) { // throws timeout
 			m_propagator->propagate(n, true); // true = report solutions
 			m_best_cost = m_propagator->get_best_cost();
+            m_best_config = m_propagator->get_best_config();
             n = next_leaf();
 		}
 
@@ -1091,13 +1093,18 @@ void map2u::bnb() {
         timeout = true;
     }
 
+    size_t num_sols = m_propagator->get_num_solutions();
+    std::pair<size_t, size_t> nodes_expanded = m_search_space->get_num_nodes();
+
     std::cout << "[BB] Finished search." << std::endl;
     std::cout << "[BB] Problem solved: " << (m_solved ? "true" : "false") << std::endl;
     std::cout << "[BB] Best solution: ";
-    std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
+    std::copy(m_best_config.begin(), m_best_config.end(), std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
     std::cout << "[BB] Best cost: " << m_best_cost << " (" << std::log10(m_best_cost) << ")" << std::endl;
     std::cout << "[BB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+    std::cout << "[BB] Number of AND nodes: " << nodes_expanded.first << std::endl;
+    std::cout << "[BB] Number of OR nodes: " << nodes_expanded.second << std::endl;
     std::cout << "[BB] Solutions found: " << num_sols << std::endl;
     std::cout << "[BB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 

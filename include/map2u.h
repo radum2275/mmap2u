@@ -300,7 +300,6 @@ protected:
 	size_t m_cache_hits;							///< Number of cache hits
 	size_t m_num_deadends;							///< Number of deadends
 	std::map<size_t, size_t> m_assignment;			///< Assignment during search
-	std::pair<size_t, size_t> m_num_nodes;			///< Number of node (AND, OR)
 	std::unique_ptr<pseudotree> m_pseudotree;		///< Pseudo tree
 	std::vector<size_t> m_domains;					///< Variable domains (including dummy)
 	std::unique_ptr<search_space> m_search_space;	///< The search space

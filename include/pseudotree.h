@@ -197,12 +197,16 @@ public:
 
     /// @brief Update the subproblem rooted at the node (includes the node)
     /// @return The subproblem variables.
-    const std::set<size_t>& update_subproblem();
+    const std::set<size_t>& update_subproblem(size_t num_vars);
 
     /// @brief Get the subproblem variables.
     /// @return A const reference to the subproblem variables.
-    inline const std::set<size_t>& get_subproblem(){
+    inline const std::set<size_t>& get_subproblem() {
         return m_subproblem;
+    }
+
+    inline std::vector<int>& get_subproblem_map() {
+        return m_subproblem_map;
     }
 
     /// @brief Set the context of a node in the pseudo tree (does not include variable).
@@ -228,6 +232,7 @@ protected:
     pseudotree_node* m_parent;                  ///< The parent node in the pseudo tree
     std::vector<pseudotree_node*> m_children;   ///< The children nodes in the pseudo tree
     std::set<size_t> m_subproblem;              ///< The subproblem rooted at the node (includes the node)
+    std::vector<int> m_subproblem_map;          ///< Maps variables to their index in subprob assignment 
 
 };
 
