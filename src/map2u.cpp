@@ -650,6 +650,8 @@ search_node* map2u::next_node() {
 }
 
 bool map2u::do_process(search_node* n) {
+
+    // Safety checks
 	assert(n != NULL);
 	if (n->get_type() == MERLIN_NODE_AND) {
 		size_t var = n->get_variable();
@@ -665,16 +667,19 @@ bool map2u::do_process(search_node* n) {
 
 // Retrieve an OR node from the cache if previously cached (context-based)
 bool map2u::do_caching(search_node* n) {
-	assert(n);
+
+    // Safety checks
+	assert(n != NULL);
 	int var = n->get_variable();
 	pseudotree_node* ptnode = m_pseudotree->get_node(var);
 
 	if (n->get_type() == MERLIN_NODE_AND) { // AND node -> reset associated adaptive cache tables
 
-        // no caching
+        // no caching applied
 
 	} else { // OR node, try actual caching
 
+        // No caching at root
 		if (!ptnode->get_parent()) {
 			return false;
         }
@@ -705,7 +710,9 @@ bool map2u::do_caching(search_node* n) {
 }
 
 bool map2u::do_pruning(search_node* n) {
-	assert(n);
+
+    // Safety checks
+	assert(n != NULL);
 
 	if (can_prune(n)) {
 		n->set_leaf(true);
@@ -905,7 +912,7 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
 
 bool map2u::can_prune(search_node* n) {
 
-    return false; // disable pruning for now
+    // return false; // disable pruning for now
 
 	// heuristic is an upper bound, hence can use to prune if value=0
 	if (n->get_heur() == 0.0) {
