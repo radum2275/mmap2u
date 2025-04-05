@@ -78,6 +78,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("num-extras", po::value<size_t>(), "number of extra LCN statements to generate")
 			("num-evid", po::value<size_t>(), "number of extra LCN evidence sentences")
 			("moment-matching", po::value<size_t>(), "perform moment matching")
+			("caching", po::value<size_t>(), "perform caching")
 			("help,h", "produces this help message");
 
 		po::variables_map vm;
@@ -184,7 +185,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MMAP_DFS;
 			} else if (alg.compare("dfs_map") == 0) {
 				opt->algorithm = MERLIN_ALGO_MAP_DFS;
-			} else if (alg.compare("bnb_map") == 0) {
+			} else if (alg.compare("bb_map") == 0) {
 				opt->algorithm = MERLIN_ALGO_MAP_BNB;
 			} else if (alg.compare("wmb_map") == 0) {
 				opt->algorithm = MERLIN_ALGO_MAP_WMB;
@@ -237,6 +238,12 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			opt->moment_matching = (mm == 0 ? false : true);
 		}
 
+		// caching
+		if (vm.count("caching")) {
+			size_t c = vm["caching"].as<size_t>();
+			opt->caching = (c == 0 ? false : true);
+		}
+		
 		// parse the output format
 		if (vm.count("output-format")) {
 			std::string format = vm["output-format"].as<std::string>();

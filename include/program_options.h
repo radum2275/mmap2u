@@ -76,6 +76,7 @@ struct ProgramOptions {
 	std::string potential_approx;	///< Potential approximation method: none, covering, lpub, gplb
 	size_t potential_size;			///< Maximum potential size (0 - no bounds)
 	bool moment_matching;			///< Do moment matching
+	bool caching;					///< Do caching
 
 public:
 
@@ -119,6 +120,7 @@ inline ProgramOptions::ProgramOptions() :
 		num_evid(0),
 		potential_approx("none"),
 		potential_size(0),
-		moment_matching(false) {};
+		moment_matching(false),
+		caching(false) {};
 
 #endif /* IBM_MERLIN_PROGRAM_OPTIONS_H_ */

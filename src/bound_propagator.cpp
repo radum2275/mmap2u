@@ -26,6 +26,7 @@ namespace merlin {
 // Constructor
 bound_propagator::bound_propagator() {
     m_caching = false; // default no caching
+    m_verbose = 0; // verbosity level
 }
 
 bound_propagator::~bound_propagator() {
@@ -44,6 +45,12 @@ bound_propagator::~bound_propagator() {
     // These two pointers move upward in the search space, always one level
     // apart s.t. cur is the parent node of prev
     search_node* cur = n->get_parent(), *prev = n;
+	if (cur == NULL) { // n is actually the root
+        m_best_cost = n->get_cost();
+        m_best_config = n->get_assignment();
+
+		return NULL;
+	}
 
     // Keeps track of the highest node to be deleted during cleanup,
     // where .second will be deleted as a child of .first
@@ -54,9 +61,9 @@ bound_propagator::~bound_propagator() {
     // 'del' signals whether we are still deleting nodes in this call
     bool del = (upper_limit != n) ? true : false;
 
-//#ifdef DEBUG
-	std::cout << " --- begin propagation:" << std::endl;
-//#endif
+    if (m_verbose > 0) {
+        std::cout << "[VALUE] begin propagation:" << std::endl;
+    }
 
     // Going all the way to the root, if we have to
     do {
@@ -81,13 +88,14 @@ bound_propagator::~bound_propagator() {
                 // store into value (thus includes cost of subSolved)
                 cur->set_cost(d);
 
-    //#ifdef DEBUG
-    			std::cout << "   current AND node updated: " << cur->to_string() << std::endl;
-    //#endif
+                if (m_verbose > 0) {
+    			    std::cout << "   current AND node updated: " << cur->to_string() << std::endl;
+                }
 
                 // Not all OR children solved yet, propagation stops here
                 if ( isnan(d) ) { // not all OR children solved yet, propagation stops here
                     prop = false;
+                    propagate_tuple(n, cur); // save (partial) opt. subproblem solution at current AND node
                 }
 
             }
@@ -123,14 +131,15 @@ bound_propagator::~bound_propagator() {
 
                 if (isnan(cur->get_cost()) || d > cur->get_cost()) {
                     cur->set_cost(d); // update max value
+                    cur->set_argmax(prev->get_value());
                 } else {
                     prop = false; // no more value propagation upwards in this call
                 }
             }
 
-    //#ifdef DEBUG
+            if (m_verbose > 0) {
     			std::cout << "   current OR node updated: " << cur->to_string() << std::endl;
-    //#endif
+            }
 
             if (del) {
                 if (prev->num_children() <= 1) { // prev has no or one children?
@@ -140,7 +149,13 @@ bound_propagator::~bound_propagator() {
                 }
             }
 
-        // ===========================================================================
+    		// save opt. tuple, will be needed for caching later
+		    if ( prop && cur->is_cachable() && cur->is_optimal() ) {
+                //DIAG(myprint("< Cachable OR node found\n"));
+                propagate_tuple(n, cur);
+            }
+
+            // ===========================================================================
         }
 
         // Don't delete anything higher than upperLimit
@@ -158,10 +173,10 @@ bound_propagator::~bound_propagator() {
 
     } while (cur); // until cur==NULL, i.e. 'parent' of root
 
-//#ifdef DEBUG
-	std::cout << " --- end propagation." << std::endl;
-//#endif
-
+    if (m_verbose > 0) {
+        std::cout << "[VALUE] end propagation." << std::endl;
+    }
+    
     // propagated up to root node, update tuple as well
     if (prop && !cur) {
         propagate_tuple(n, prev);
@@ -209,18 +224,40 @@ void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
 	std::vector<int>& assig = end->get_assignment();
 	assig.resize(end_subprob.size(), UNKNOWN);
 
+    if (m_verbose > 0) {
+        std::cout << "[TUPLE] begin tuple propagation:" << std::endl;
+        std::cout << "     end: " << end->to_string() << std::endl;
+        std::cout << "   start: " << start->to_string() << std::endl;
+        std::cout << " subprob: "; 
+        std::copy(end_subprob.begin(), end_subprob.end(), std::ostream_iterator<size_t>(std::cout, " "));
+        std::cout << std::endl;
+        std::cout << "     map: ";
+        std::copy(end_var_map.begin(), end_var_map.end(), std::ostream_iterator<int>(std::cout, " "));
+        std::cout << std::endl;
+    }
+
 	int curr_var = UNKNOWN, curr_val = UNKNOWN;
 	for (search_node* curr = start; curr != end; curr = curr->get_parent()) {
 		curr_var = curr->get_variable();
+
+        if (m_verbose) {
+            std::cout << "  > at: " << curr->to_string() << std::endl;
+        }
 
 		if (curr->get_type() == MERLIN_NODE_AND) {
 			curr_val = curr->get_value();
 			if (curr_val != UNKNOWN) {
 			    assig.at(end_var_map.at(curr_var)) = curr_val;
             }
+
+            if (m_verbose > 0) {
+                std::cout << "assg: ";
+                std::copy(assig.begin(), assig.end(), std::ostream_iterator<int>(std::cout, " "));
+                std::cout << std::endl;
+            }
 		}
 
-		if (curr->get_assignment().size()) {
+		if (curr->get_assignment().size() > 0) {
 			// check previously saved partial assignment
 			const std::set<size_t>& curr_subprob = m_pseudotree->get_node(curr->get_variable())->get_subproblem();
 			std::set<size_t>::const_iterator itVar = curr_subprob.begin();
@@ -238,9 +275,18 @@ void bound_propagator::propagate_tuple(search_node* start, search_node* end) {
 			if (curr->get_type() == MERLIN_NODE_AND) {
 			    curr->clear_assignment();// TODO correct ?
             }
+
+            if (m_verbose > 0) {
+                std::cout << "assg: ";
+                std::copy(assig.begin(), assig.end(), std::ostream_iterator<int>(std::cout, " "));
+                std::cout << std::endl;
+            }
 		}
 	} // end for
 
+    if (m_verbose > 0) {
+        std::cout << "[TUPLE] end tuple propagation." << std::endl;
+    }
 }
 
 void bound_propagator::update_solution(double timestamp, double cost, 
@@ -252,7 +298,7 @@ void bound_propagator::update_solution(double timestamp, double cost,
         std::cout << "[" << std::setw(9) << timestamp << "] u "
             << std::setw(12) << num_nodes.first << " "
             << std::setw(12) << num_nodes.second << " "
-            << std::setw(12) << m_best_cost << " (" << std::log(m_best_cost) << ")"
+            << std::setw(12) << m_best_cost << " (" << std::log10(m_best_cost) << ")"
             << std::endl;
     } else {
         return;

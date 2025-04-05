@@ -56,6 +56,9 @@ public:
     inline std::vector<std::vector<int>>& get_solutions() {
         return m_solutions;
     }
+    inline void set_verbosity(size_t v) {
+        m_verbose = v;
+    }
     inline void init(double start_time, pseudotree* pt, search_space* s, bool caching = false) {
         m_start_time = start_time;
         m_pseudotree = pt;
@@ -74,6 +77,7 @@ protected:
     pseudotree* m_pseudotree;                       ///< Pseudo tree
     double m_start_time;                            ///< Start time
     search_space* m_space;                          ///< Search space
+    size_t m_verbose;                               ///< Verbosity level
 };
 
 } // end namespace

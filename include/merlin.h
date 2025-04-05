@@ -82,6 +82,7 @@ protected:
 	std::string m_potential_approx;		///< Potential approximation method (none, covering, lpub, gplb)
 	size_t m_potential_size;			///< Potential maximum size (0 - no bounds)
 	bool m_moment_matching;				///< Do moment matching
+	bool m_caching;						///< Do caching (graph search)
 	
 private:
 	// Local members:
@@ -260,6 +261,8 @@ public:
 	void set_potential_approx(std::string s);
 	void set_potential_size(size_t n);
 	void set_moment_matching(bool m);
+	void set_caching(bool c);
+
 	///
 	/// \brief Initialize the solver.
 	///	\return *true* if succesful and *false* otherwise.

@@ -108,7 +108,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,Seed,QueryType,TimeLimit,IBound,Iterations,DoMatch );
+	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,DoCaching,Seed,QueryType,TimeLimit,IBound,Iterations,DoMatch,DoAndOr );
 
 
 	// Setting properties (directly or through property string):
@@ -133,7 +133,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2,Iterations=1,DoMatch=0");
+			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,DoCaching=0,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2,Iterations=1,DoMatch=0,DoAndOr=0");
 			return;
 		}
 		m_verbose = 1;
@@ -170,8 +170,14 @@ public:
 			case Property::DoMatch:
 				m_matching = atol(asgn[1].c_str());
 				break;
+			case Property::DoAndOr:
+				m_ao_search = atol(asgn[1].c_str());
+				break;
 			case Property::Verbose:
 				m_verbose = atol(asgn[1].c_str());
+				break;
+			case Property::DoCaching:
+				m_caching = atol(asgn[1].c_str());
 				break;
 			case Property::Seed:
 				m_seed = atol(asgn[1].c_str());
@@ -293,6 +299,8 @@ protected:
 	size_t m_potential_approx;						///< Potential approximation method (none, covering, lub, glb)
 	size_t m_iterations;							///< Number of iterations for moment-matching
 	bool m_matching;								///< Do moment matching
+	bool m_caching;									///< Do caching
+	bool m_ao_search;								///< Do AND/OR search
 
 	std::stack<search_node*> m_stack; 				///< Search stack
 	std::unique_ptr<bound_propagator> m_propagator;	///< Bound propagator

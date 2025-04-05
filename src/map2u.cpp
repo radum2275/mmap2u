@@ -57,7 +57,7 @@ double map2u::build_heuristic() {
     std::cout << "[HEUR] Building the WMB heuristic..." << std::endl;
 
     // Initialize the buckets
-    std::cout << "[HEUR] Initialize the buckets" << std::endl;
+    std::cout << "[HEUR] Initialize the buckets." << std::endl;
     std::vector<bool> used(num_vars, false);
     m_buckets.resize(num_vars);
     m_intermediate.resize(num_vars);
@@ -90,7 +90,10 @@ double map2u::build_heuristic() {
     for (size_t i = 0; i < num_vars - 1; ++i) {
         size_t v = m_order[i];
         variable vx = var(v);
-        std::cout << "[HEUR] Eliminating variable: " << v << std::endl;
+
+        if (m_verbose > 0) {
+            std::cout << "[HEUR] Eliminating variable: " << v << std::endl;
+        }
 
         // Partition the bucket into mini-buckets
         std::vector<potential> partition = m_buckets[i].create_partition(m_ibound, m_query_type, m_potential_approx, m_potential_size, m_epsilon);
@@ -157,8 +160,9 @@ double map2u::build_heuristic() {
 
     // Get the best score
     double global_bound = r.p()[0][0];
-    std::cout << "[HEUR] Global bound: " << global_bound << "(" << std::log10(global_bound) << ")" << std::endl; 
-    std::cout << "[HEUR] Finished building the heuristic" << std::endl;
+    std::cout << "[HEUR] Global bound: " << global_bound << "(" << std::log10(global_bound) << ")" << std::endl;
+    std::cout << "[HEUR] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl; 
+    std::cout << "[HEUR] Finished building the heuristic." << std::endl;
 
     if (m_verbose > 0) {
         std::cout << "[DEBUG] Bucket structure:" << std::endl;
@@ -264,6 +268,12 @@ void map2u::dfs() {
 
             std::cout << "   - found better solution [" << best_score << " (" << std::log10(best_score) << ")]: ";
             std::copy(best_config.begin(), best_config.end(), std::ostream_iterator<int>(std::cout, " "));
+            std::cout << std::endl;
+        }
+
+        if (m_verbose > 0) {
+            std::cout << "SOL: [" << score << " (" << std::log10(score) << ")]: ";
+            std::copy(values.begin(), values.end(), std::ostream_iterator<int>(std::cout, " "));
             std::cout << std::endl;
         }
 
@@ -698,6 +708,10 @@ bool map2u::do_caching(search_node* n) {
 				n->set_leaf(true); // mark as leaf
 				++m_cache_hits;
 
+                if (m_verbose > 0) {
+                    std::cout << "[CACHE] Found cached OR node: " << n->to_string() << std::endl;
+                }
+
 				return true;
 			} catch (...) { // cache lookup failed
 				n->set_cachable(); // mark for caching later
@@ -717,6 +731,10 @@ bool map2u::do_pruning(search_node* n) {
 	if (can_prune(n)) {
 		n->set_leaf(true);
         n->set_pruned();
+        if (m_verbose > 0) {
+            std::cout << "[PRUNE] Found pruned node: " << n->to_string() << std::endl;
+        }
+
         if (n->get_type() == MERLIN_NODE_OR) {
 			if (isnan(n->get_cost())) { // value could be set by LDS
 				n->set_cost(0.0);
@@ -831,7 +849,9 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
         // Increase AND node expansions
         m_search_space->add_node(MERLIN_NODE_AND);
 
-        std::cout << "Expanding AND node: " << n->to_string() << std::endl;
+        if (m_verbose > 0) {
+            std::cout << "[EXPAND] Expanding AND node: " << n->to_string() << std::endl;
+        }
 
         // Create new OR children (going in reverse due to reversal on stack)
         std::vector<pseudotree_node*>::const_reverse_iterator it = ptnode->get_children().rbegin();
@@ -849,8 +869,9 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
             c->set_depth(n->get_depth() + 1);
             chi.push_back(c);
 
-            std::cout << "  - OR child: " << c->to_string() << std::endl;
-
+            if (m_verbose > 0) {
+                std::cout << "  - OR child: " << c->to_string() << std::endl;
+            }
         } // for loop over new OR children
 
         if (chi.empty()) {
@@ -871,8 +892,10 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
         // Increase OR node expansions
         m_search_space->add_node(MERLIN_NODE_OR);
 
-        std::cout << "Expanding OR node: " << n->to_string() << std::endl;
-        
+        if (m_verbose > 0) {
+            std::cout << "[EXPAND] Expanding OR node: " << n->to_string() << std::endl;
+        }
+
         // Retrieve precomputed weights and heuristic values
         std::vector<double>& heur = n->get_cache();
         for (int val = m_domains[var] - 1; val >= 0; --val) {
@@ -891,7 +914,9 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
             
             chi.push_back(c);
 
-            std::cout << "  - AND child: "<< c->to_string() << std::endl;
+            if (m_verbose) {
+                std::cout << "  - AND child: "<< c->to_string() << std::endl;
+            }
         }
     
         if (chi.empty()) { // deadend
@@ -1021,6 +1046,7 @@ void map2u::bnb() {
     size_t dummy = num_vars; // dummy variable
     bool timeout = false;
     double* _EmergencyMem = new double[10]; // a memory buffer
+    bool is_chain = (m_ao_search ? false : true); // chain pseudo tree (OR search)
 
     // Create the minfill elimination ordering (for precompiled heuristics)
     m_order = order2();
@@ -1030,6 +1056,10 @@ void map2u::bnb() {
     std::cout << "[BB] Induced width: " << m_width << std::endl;
     std::cout << "[BB] MB ibound: " << m_ibound << std::endl;
     std::cout << "[BB] Number of variables: " << num_vars << std::endl;
+    std::cout << "[BB] AND/OR search: " << (m_ao_search ? "yes" : "no") << std::endl;
+    std::cout << "[BB] Enable caching: " << (m_caching ? "yes" : "no") << std::endl;
+    std::cout << "[BB] Moment matching: " << (m_matching ? "yes" : "no") << std::endl;
+    std::cout << "[BB] Chain PT: " << (is_chain ? "yes" : "no") << std::endl;
 
     // Moralize the graph
     graph g = this->moralize();
@@ -1043,7 +1073,7 @@ void map2u::bnb() {
     // Create the pseudo tree
     m_pseudotree = std::make_unique<pseudotree>();
     m_pseudotree->init(num_vars);
-    m_pseudotree->build(g, m_order, true);
+    m_pseudotree->build(g, m_order, is_chain);
     m_pseudotree->reset_potentials(m_factors); // includes the dummy variable ?
     m_order.push_back(dummy);
 
@@ -1069,7 +1099,8 @@ void map2u::bnb() {
 
     // Init the bound propagator (set caching as well)
     m_propagator = std::make_unique<bound_propagator>();
-    m_propagator->init(m_start_time, m_pseudotree.get(), m_search_space.get(), false);
+    m_propagator->init(m_start_time, m_pseudotree.get(), m_search_space.get(), m_caching);
+    m_propagator->set_verbosity(m_verbose);
 
     std::cout << "[BB] Begin search..." << std::endl;
 
@@ -1112,6 +1143,8 @@ void map2u::bnb() {
     std::cout << "[BB] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[BB] Number of AND nodes: " << nodes_expanded.first << std::endl;
     std::cout << "[BB] Number of OR nodes: " << nodes_expanded.second << std::endl;
+    std::cout << "[BB] Cache hits: " << m_cache_hits << std::endl;
+    std::cout << "[BB] Deadends: " << m_num_deadends << std::endl;
     std::cout << "[BB] Solutions found: " << num_sols << std::endl;
     std::cout << "[BB] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 
@@ -1155,7 +1188,7 @@ void map2u::run() {
     } else if (m_search_method.compare("bnb") == 0) { // Branch and Bound Search
         bnb();
     } else if (m_search_method.compare("aobb") == 0) { // AND/OR Branch and Bound Search
-        aobb();
+        bnb();
     } else if (m_search_method.compare("wmb") == 0) { // Weighted Mini-Buckets
         wmb();
     }

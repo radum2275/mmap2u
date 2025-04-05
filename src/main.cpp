@@ -141,6 +141,7 @@ int main(int argc, char** argv) {
 	eng.set_potential_approx(opt->potential_approx);
 	eng.set_potential_size(opt->potential_size);
 	eng.set_moment_matching(opt->moment_matching);
+	eng.set_caching(opt->caching);
 	
 	// Run the inference
 	eng.init();

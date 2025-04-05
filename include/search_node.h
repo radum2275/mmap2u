@@ -47,6 +47,7 @@ class search_node {
         bool m_pruned;                          // pruned node
         bool m_optimal;                         // optimal node (true)
         double m_subsolved;                     // cost of solved subproblems
+        int m_argmax;                           // best domain value for OR nodes
 
         search_node* m_parent;                  // parent
         std::vector<search_node*> m_children;   // children
@@ -58,7 +59,8 @@ class search_node {
         search_node(size_t var, int val, size_t type) :
             m_variable(var), m_value(val), m_type(type), m_heur(1.0), 
             m_cost(NAN), m_weight(1.0), m_parent(NULL), m_leaf(false),
-            m_subsolved(1.0), m_cachable(false), m_pruned(false), m_optimal(true) {};
+            m_subsolved(1.0), m_cachable(false), m_pruned(false), 
+            m_optimal(true), m_argmax(UNKNOWN) {};
         
         ~search_node() {};
 
@@ -190,6 +192,12 @@ class search_node {
         inline std::string get_context() {
             return m_context; // the value assignment to the context variables
         }
+        inline void set_argmax(int v) {
+            m_argmax = v;
+        }
+        inline int get_argmax() {
+            return m_argmax;
+        }
         inline std::string to_string() {
             std::ostringstream oss;
             if (m_type == MERLIN_NODE_AND) {
@@ -197,12 +205,15 @@ class search_node {
                     << "  w = " << m_weight
                     << ", h = " << m_heur
                     << ", v = " << m_cost
+                    << ", c = " << m_children.size()
                     << ", s = " << m_subsolved << " ]"
                     ;
             } else {
                 oss << "OR node: x" << m_variable << " [ "
                     << "  h = " << m_heur
-                    << ", v = " << m_cost << " ]"
+                    << ", v = " << m_cost
+                    << ", c = " << m_children.size() 
+                    << ", a = " << m_argmax << " ]"
                     ;
             
             }

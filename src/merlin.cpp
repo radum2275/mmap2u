@@ -72,6 +72,7 @@ Merlin::Merlin() {
 	m_potential_approx = "none";
 	m_potential_size = 0;
 	m_moment_matching = false;
+	m_caching = false;
 }
 
 ///
@@ -291,6 +292,9 @@ void Merlin::set_potential_size(size_t n) {
 }
 void Merlin::set_moment_matching(bool m) {
 	m_moment_matching = m;
+}
+void Merlin::set_caching(bool c) {
+	m_caching = c;
 }
 
 ///
@@ -708,11 +712,15 @@ int Merlin::run() {
 				merlin::map2u s(m_gmo);
 				std::ostringstream oss;
 				oss << "SearchMethod=dfs,"
-					<< "Threshold=" << m_threshold << ","
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
 					<< "Verbose=" << m_verbose << ","
 					<< "QueryType=" << m_query_type << ","
 					<< "TimeLimit=" << m_time_limit << ","
 					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
@@ -731,6 +739,8 @@ int Merlin::run() {
 					<< "IBound=" << m_ibound << ","
 					<< "Iterations=" << m_iterations << ","
 					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
+					<< "DoAndOr=0" << ","
+					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
@@ -740,11 +750,17 @@ int Merlin::run() {
 				merlin::map2u s(m_gmo);
 				std::ostringstream oss;
 				oss << "SearchMethod=aobb,"
-					<< "Threshold=" << m_threshold << ","
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
 					<< "Verbose=" << m_verbose << ","
 					<< "QueryType=" << m_query_type << ","
 					<< "TimeLimit=" << m_time_limit << ","
 					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
+					<< "DoAndOr=1" << ","
+					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
