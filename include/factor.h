@@ -699,6 +699,19 @@ public:
 		}
 	}
 
+	bool is_equal_as_int(const factor& B) const {
+		if (v_ != B.v_) {
+			return false;
+		} else {
+			for (size_t i = 0; i < numel(); ++i) {
+				if (int(t_[i]) != int(B.t_[i])) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+
 	// Basic factor operations (+,-,*,/):
 
 	///

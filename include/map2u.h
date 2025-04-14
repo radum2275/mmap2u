@@ -153,6 +153,8 @@ public:
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_NONE;
 				} else if (asgn[1].compare("covering") == 0) {
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_COVERING;
+				} else if (asgn[1].compare("covbound") == 0) {
+					m_potential_approx = MERLIN_POTENTIAL_APPROX_COVERING_BOUND;
 				} else if (asgn[1].compare("plub") == 0) {
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_LEAST_UPBO;
 				} else if (asgn[1].compare("pglb") == 0) {
@@ -168,7 +170,7 @@ public:
 				m_iterations = atol(asgn[1].c_str());
 				break;
 			case Property::DoMatch:
-				m_matching = atol(asgn[1].c_str());
+				m_matching_strategy = atol(asgn[1].c_str());
 				break;
 			case Property::DoAndOr:
 				m_ao_search = atol(asgn[1].c_str());
@@ -258,13 +260,23 @@ protected:
 	///
 	/// \brief Moment-matching (max) in a mini-buckets partition
 	///
-	void moment_matching(variable vx, std::vector<potential>& partition, std::mt19937& rng);
+	void moment_matching(variable vx, std::vector<potential>& partition);
 	
 	///
 	/// \brief Max marginals
 	///
-	factor maxmarginal(const factor& f, const variable_set& vs) {
-		return f.maxmarginal(vs);
+	// factor maxmarginal(const factor& f, const variable_set& vs) {
+	// 	return f.maxmarginal(vs);
+	// }
+
+	potential maxmarginal(const potential& p, const variable_set& vs) {
+		potential result;
+		for (size_t i = 0; i < p.size(); ++i) {
+			factor f = p[i].maxmarginal(vs);
+			result.add_p(f);
+		}
+
+		return result;
 	}
 
 	search_node* next_leaf();
@@ -298,7 +310,7 @@ protected:
 	size_t m_potential_size;						///< Max potential size (0 - no bounds)
 	size_t m_potential_approx;						///< Potential approximation method (none, covering, lub, glb)
 	size_t m_iterations;							///< Number of iterations for moment-matching
-	bool m_matching;								///< Do moment matching
+	size_t m_matching_strategy;						///< Do moment matching (0 - none, 1 - single PLUB/PGLB, 2 - exhaustive, 3 - ...)
 	bool m_caching;									///< Do caching
 	bool m_ao_search;								///< Do AND/OR search
 

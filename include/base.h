@@ -128,8 +128,9 @@
 ///
 #define MERLIN_POTENTIAL_APPROX_NONE            0   ///< No approximation
 #define MERLIN_POTENTIAL_APPROX_COVERING        1   ///< Epsilon covering
-#define MERLIN_POTENTIAL_APPROX_LEAST_UPBO      2   ///< Least Pareto Upper Bound
-#define MERLIN_POTENTIAL_APPROX_GREATEST_LOBO   3   ///< Greatest Pareto Lower Bound
+#define MERLIN_POTENTIAL_APPROX_COVERING_BOUND  2   ///< Epsilon convering with PLUB/PGLB
+#define MERLIN_POTENTIAL_APPROX_LEAST_UPBO      3   ///< Pareto Least Upper Bound
+#define MERLIN_POTENTIAL_APPROX_GREATEST_LOBO   4   ///< Pareto Greatest Lower Bound
 
 ///
 /// Input graphical models.

@@ -99,8 +99,8 @@ double map2u::build_heuristic() {
         std::vector<potential> partition = m_buckets[i].create_partition(m_ibound, m_query_type, m_potential_approx, m_potential_size, m_epsilon);
 
         // Moment-matching between the mini-buckets
-        if (m_matching && partition.size() > 1) { // match between multiple mini-buckets
-            moment_matching(vx, partition, rng);
+        if (m_matching_strategy > 0 && partition.size() > 1) { // match between multiple mini-buckets
+            moment_matching(vx, partition);
         }
 
         // Eliminate the bucket variable from each mini-bucket
@@ -306,53 +306,52 @@ void map2u::dfs() {
     m_best_cost = best_score;
 }
 
-// Moment-matching (max) in a mini-buckets partition
-void map2u::moment_matching(variable vx, std::vector<potential>& partition, std::mt19937& rng) {
+// Moment-matching (max) between the mini-buckets of a sigle bucket
+void map2u::moment_matching(variable vx, std::vector<potential>& partition) {
+    // Moment matching strategies:
+    // 0 - no moment matching
+    // 1 - single function (PLUB/PGLB)
+    // 2 - exhaustive
+    // 3 - ...
 
-    // Special case: all mini-buckets are size 1 potentials (e.g., LPUB/GPLB(1))
-    bool all_ones = true;
-    for (size_t i = 0; i < partition.size(); ++i) {
-        if (partition[i].size() > 1) {
-            all_ones = false;
-            break;
-        }
-    }
-
-    size_t num_iters = m_iterations;
-    if (all_ones) {
-        num_iters = 1;
-    }
-
-    // At each iterations, select randomly functions from each potential
-    for (size_t iter = 1; iter <= num_iters; ++iter) {
-        std::vector<size_t> selection;
-        for (size_t i = 0; i < partition.size(); ++i) {
-            size_t sel = partition[i].select(rng);
-            selection.push_back(sel);
-        }
-
-        // Do moment matching between the functions in the current selection
-        size_t R = selection.size();
-        std::vector<factor> ftmp(R);       // compute geometric mean
-        variable_set vs = partition[0][selection[0]].vars(); // on all mutual variables
+    if (m_matching_strategy == 0) { // no moment matching
+        return; 
+    } else if (m_matching_strategy == 1) { // single function
+       
+        // Do moment matching between the mini-buckets
+        size_t R = partition.size();
+        std::vector<factor> ftmp(R);         // compute geometric mean
+        variable_set vs = partition[0].vars();  // on all mutual variables
         for (size_t i = 1; i < R; i++) {
-            size_t j = selection[i];
-            vs &= partition[i][j].vars();
+            vs &= partition[i].vars();
         }
 
+        // The auxiliary lambdas are the PLUB(1) approx of the max-marginals
         factor fmatch(vs, 1.0);
         for (size_t i = 0; i < R; i++) {
-            size_t j = selection[i];
-            ftmp[i] = maxmarginal(partition[i][j], vs);
+            potential marg = maxmarginal(partition[i], vs); // max-marginal on common vars
+            if (m_query_type == MERLIN_MAP_MAXIMAX) {
+                marg.plub(1);
+            } else {
+                marg.pglb(1);
+            }
+            ftmp[i] = marg[0]; // save the max-marginal of the mini-bucket
             fmatch *= ftmp[i];
         }
 
         fmatch ^= (1.0/R);         // and match each bucket to it
         for (size_t i = 0; i < R; i++) {
-            size_t j = selection[i];
-            partition[i][j] *= (fmatch/ftmp[i]);
+            factor f = (fmatch/ftmp[i]);
+            potential pot(f);
+            partition[i].multiply(pot);
         }
+
+    } else if (m_matching_strategy == 2) {
+        throw 2; // not implemented yet
+    } else {
+        throw 1; // not implemented yet
     }
+
 }
 
 // Credal Weighted Mini-Buckets for MAP (approximate)
@@ -369,7 +368,7 @@ void map2u::wmb() {
     // Number of variables
     size_t num_vars = nvar();
     std::mt19937 rng(1234);
-
+     
     // Create the minfill elimination ordering
     std::vector<size_t> elim_order;
     elim_order = order2();
@@ -379,6 +378,7 @@ void map2u::wmb() {
     std::cout << "[CWMB] Induced width: " << m_width << std::endl;
     std::cout << "[CWMB] MB ibound: " << m_ibound << std::endl;
     std::cout << "[CWMB] Number of variables: " << num_vars << std::endl;
+    std::cout << "[CQMB] Moment matching: " << m_matching_strategy << std::endl;
 
     // Initialize the buckets
     std::cout << "[CWMB] Initialize the buckets" << std::endl;
@@ -432,24 +432,26 @@ void map2u::wmb() {
         std::vector<potential> partition = buckets[i].create_partition(m_ibound, m_query_type, m_potential_approx, m_potential_size, m_epsilon);
         std::cout << "  - created " << partition.size() << " mini-buckets" << std::endl;
 
-        if (m_verbose > 0) {
-            std::cout << "[DEBUG] Partition before moment-matching:" << std::endl;
-            for (size_t j = 0; j < partition.size(); ++j) {
-                std::cout << partition[j] << std::endl;
-            }
-        }
 
         // Moment-matching between the mini-buckets
-        if (m_matching && partition.size() > 1) { // match between multiple mini-buckets
-            moment_matching(vx, partition, rng);
+        if (m_matching_strategy > 0 && partition.size() > 1) { // match between multiple mini-buckets
+            if (m_verbose > 0) {
+                std::cout << "[DEBUG] Partition before moment-matching:" << std::endl;
+                for (size_t j = 0; j < partition.size(); ++j) {
+                    std::cout << partition[j] << std::endl;
+                }
+            }
+    
+            moment_matching(vx, partition);
+
+            if (m_verbose > 0) {
+                std::cout << "[DEBUG] Partition after moment-matching:" << std::endl;
+                for (size_t j = 0; j < partition.size(); ++j) {
+                    std::cout << partition[j] << std::endl;
+                }
+            }    
         }
 
-        if (m_verbose > 0) {
-            std::cout << "[DEBUG] Partition after moment-matching:" << std::endl;
-            for (size_t j = 0; j < partition.size(); ++j) {
-                std::cout << partition[j] << std::endl;
-            }
-        }
 
         // Eliminate the bucket variable from each mini-bucket
         for (size_t j = 0; j < partition.size(); ++j) {
@@ -618,7 +620,8 @@ void map2u::set_cache_context(search_node* n, const std::set<size_t>& ctxt) cons
         signature << "x" << *si << "=" << m_assignment.at(*si) << ";";
     }
 
-	n->set_context(signature.str());
+    std::string str_context = signature.str();
+	n->set_context(str_context);
 }
 
 search_node* map2u::next_leaf() {
@@ -937,7 +940,7 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
 
 bool map2u::can_prune(search_node* n) {
 
-    // return false; // disable pruning for now
+    return false; // disable pruning for now
 
 	// heuristic is an upper bound, hence can use to prune if value=0
 	if (n->get_heur() == 0.0) {
@@ -1058,7 +1061,7 @@ void map2u::bnb() {
     std::cout << "[BB] Number of variables: " << num_vars << std::endl;
     std::cout << "[BB] AND/OR search: " << (m_ao_search ? "yes" : "no") << std::endl;
     std::cout << "[BB] Enable caching: " << (m_caching ? "yes" : "no") << std::endl;
-    std::cout << "[BB] Moment matching: " << (m_matching ? "yes" : "no") << std::endl;
+    std::cout << "[BB] Moment matching: " << m_matching_strategy << std::endl;
     std::cout << "[BB] Chain PT: " << (is_chain ? "yes" : "no") << std::endl;
 
     // Moralize the graph

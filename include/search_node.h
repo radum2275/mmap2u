@@ -134,13 +134,11 @@ class search_node {
         inline std::vector<search_node*>& get_children() {
             return m_children;
         }
-        inline search_node* remove_child(search_node* c) {
+        inline void remove_child(search_node* c) {
             std::vector<search_node*>::iterator it = std::find(m_children.begin(), m_children.end(), c);
             if (it != m_children.end()) {
-                return (*it);
+                m_children.erase(it);
             }
-
-            return NULL;
         }
         inline std::vector<double>& get_cache() {
             return m_cache;

@@ -77,6 +77,11 @@ public:
         original_ = true;
     };
 
+    potential(const factor& f) {
+        p_.push_back(f);
+        original_ = false;
+        v_ = f.vars();
+    }
 	///
 	/// \brief Copy-constructor.
 	///
@@ -311,10 +316,152 @@ public:
     }
 
     ///
+    /// \brief Compute an e-covering (p-component)
+    /// \param eps the epsilon value for the covering (1+eps)
+    /// \param max the flag indicating maximization or minimization
+    ///
+    void covering_bound(double eps = 0.1, bool max = true) {
+        
+        // Logarithmic grid (gamma)
+        typedef std::vector<factor> factors;
+        std::vector<std::pair<factor, factors> > gamma;
+
+        // Map all factors of the potential onto the logarithmic grid
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor f = p_[i]; // copy
+            if (max == true) {
+                f.phi_max(eps); // transform the factor
+            } else {
+                f.phi_min(eps); // transform the factor
+            }
+
+            // Check if the transformed factor is already in covering
+            bool found = false;
+            for (size_t j = 0; j < gamma.size(); ++j) {
+                if (f.is_equal_as_int(gamma[j].first)) {
+                    bool found = true;
+                    gamma[j].second.push_back(p_[i]);
+                    break;
+                }
+            }
+
+            if (!found) { // create new grid cell
+                factors temp;
+                temp.push_back(p_[i]);
+                gamma.push_back(std::make_pair(f, temp));
+            }
+        }
+
+        std::cout << "Grid cells: " << gamma.size() << std::endl;
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            std::cout << "Cell " << i << ": " << gamma[i].first << " | " << gamma[i].second.size() << std::endl;
+        }
+
+        // Compute the undominated grid cells
+        std::vector<std::pair<factor, factors> > undominated;
+        for (size_t j = 0; j < gamma.size(); ++j) {
+            factor& c = gamma[j].first; // grid cell
+
+            // Check if grid cell is dominated
+            bool found = false;
+            for (size_t i = 0; i < undominated.size(); ++i) {
+                if (max == true) {
+                    if (undominated[i].first >= c) {
+                        found = true;
+                        break;
+                    }
+                } else {
+                    if (undominated[i].first <= c) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found) {
+                
+                std::vector<std::pair<factor, factors> > cleaned;
+                for (size_t i = 0; i < undominated.size(); ++i) {
+                    if (max == true) {
+                        if (c >= undominated[i].first) {
+                            continue; // skip dominated grid cells
+                        } else {
+                            cleaned.push_back(undominated[i]);
+                        }
+                    } else {
+                        if (c <= undominated[i].first) {
+                            continue; // skip dominated grid cells
+                        } else {
+                            cleaned.push_back(undominated[i]);
+                        }
+                    }
+                }
+
+                undominated.clear();
+                undominated = cleaned;
+                undominated.push_back(gamma[j]);
+            }
+        }
+
+        std::cout << "Undominated Grid cells: " << undominated.size() << std::endl;
+        for (size_t i = 0; i < undominated.size(); ++i) {
+            std::cout << "Cell " << i << ": " << undominated[i].first << " | " << undominated[i].second.size() << std::endl;
+        }
+
+        // For each nondominated grid cell, keep the PLUB/PGLB of its points
+        p_.clear();
+        for (size_t i = 0; i < undominated.size(); ++i) {
+            if (max == true) {
+                factor f = plub(undominated[i].second);
+                p_.push_back(f);
+            } else {
+                factor f = pglb(undominated[i].second);
+                p_.push_back(f);
+            }
+        }
+    }
+
+    ///
+    /// @brief Compute the PLUB(1) for a list of factors.
+    /// @param fs the input list of factors
+    /// @return the PLUB(1) of the input factors
+    ///
+    factor plub(std::vector<factor>& fs) {
+        factor f(fs[0]); // copy first element of the p-component
+        for (size_t j = 0; j < f.numel(); ++j) {
+            value v = f[j];
+            for (size_t i = 0; i < fs.size(); ++i) {
+                v = std::max(v, fs[i][j]);
+            }
+            f[j] = v;
+        }
+
+        return f;
+    }
+
+    ///
+    /// @brief Compute the PGLB(1) for a list of factors.
+    /// @param fs the input list of factors
+    /// @return the PGLB(1) of the input factors
+    ///
+    factor pglb(std::vector<factor>& fs) {
+        factor f(fs[0]); // copy first element of the p-component
+        for (size_t j = 0; j < f.numel(); ++j) {
+            value v = f[j];
+            for (size_t i = 0; i < fs.size(); ++i) {
+                v = std::min(v, fs[i][j]);
+            }
+            f[j] = v;
+        }
+
+        return f;
+    }
+
+    ///
     /// \brief Compute least upper bound (p-component)
     /// \param b the maximum size of the vector
     ///
-    void least_ub(size_t b = 1) {
+    void plub(size_t b = 1) {
 
         std::vector<factor> gamma;
         if (b == 1) { // special case
@@ -384,7 +531,7 @@ public:
     /// \brief Compute greatest lower bound (p-component)
     /// \param b the maximum size of the vector
     ///
-    void greatest_lb(size_t b = 1) {
+    void pglb(size_t b = 1) {
 
         std::vector<factor> gamma;
         if (b == 1) { // special case
@@ -883,16 +1030,20 @@ public:
                 this->maximize();
             } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
                 this->covering(eps, true);
+            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING_BOUND) {
+                this->covering_bound(eps, true);
             } else if (potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
-                this->least_ub(potential_size);
+                this->plub(potential_size);
             }
         } else if (query_type == MERLIN_MAP_MAXIMIN) {
             if (potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
                 this->minimize();
             } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
                 this->covering(eps, false);
+            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING_BOUND) {
+                this->covering_bound(eps, false);
             } else if (potential_approx == MERLIN_POTENTIAL_APPROX_GREATEST_LOBO) {
-                this->greatest_lb(potential_size);
+                this->pglb(potential_size);
             }
         }
     }
