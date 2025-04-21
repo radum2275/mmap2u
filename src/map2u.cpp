@@ -241,9 +241,9 @@ void map2u::dfs() {
 
         if (i < 0) break;	// done;
         ++values[i];
+        num_nodes++;
 
         // NOW: all MAP variables have a specific value combination.
-        num_nodes++;
         std::map<size_t, size_t> config;
         for (size_t j = 0; j < m_query.size(); ++j) {
             config[m_query[j]] = values[j];
@@ -282,6 +282,10 @@ void map2u::dfs() {
         if (m_time_limit > 0 && elapsed > m_time_limit) {
             std::cout << "  - TIMELIMT" << std::endl;
             timeout = true;
+        }
+
+        if (timeout) {
+            break; // timout
         }
     }
 
