@@ -200,6 +200,9 @@ bound_propagator::~bound_propagator() {
 
         // finally clean up, delete subproblem with unnecessary nodes from memory
         parent->remove_child(child);
+        if (m_verbose > 0) {
+            std::cout << "[MEMORY] Deleting from memory: " << child->to_string() << std::endl;
+        }
         delete child;
     }
 

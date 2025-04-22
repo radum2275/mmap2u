@@ -77,7 +77,7 @@ double map2u::build_heuristic() {
                     // buckets[i].add_potential(f.to_potential(false));
 
                     potential p = f.to_potential(false);
-                    p.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+                    p.approximate(m_potential_approx, m_potential_size, m_epsilon);
                     m_buckets[i].add_potential(p);
                 }
             }
@@ -112,8 +112,15 @@ double map2u::build_heuristic() {
             // Eliminate the variable (in-place)
             result.elim_max(vx);
 
-            // Remove dominated vertices or approximate the potential
-            result.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+            // Approximate the potential (in-place)
+            result.approximate(m_potential_approx, m_potential_size, m_epsilon);
+
+            // Remove dominated elements from the potential (max/min)
+            if (m_query_type == MERLIN_MAP_MAXIMAX) {
+                result.maximize();
+            } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
+                result.minimize();
+            }
 
             // Place new potential in the appropriate bucket
             if (result.nvar() == 0) { // i.e., scalar == empty scope
@@ -403,7 +410,7 @@ void map2u::wmb() {
                     // buckets[i].add_potential(f.to_potential(false));
 
                     potential p = f.to_potential(false);
-                    p.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+                    p.approximate(m_potential_approx, m_potential_size, m_epsilon);
                     buckets[i].add_potential(p);
 
                 }
@@ -477,8 +484,15 @@ void map2u::wmb() {
                 std::cout << result << std::endl;
             }
 
-            // Remove dominated vertices or approximate the potential
-            result.approximate(m_query_type, m_potential_approx, m_potential_size, m_epsilon);
+            // Approximate the potential
+            result.approximate(m_potential_approx, m_potential_size, m_epsilon);
+
+            // Remove dominated elements from the potential (max/min)
+            if (m_query_type == MERLIN_MAP_MAXIMAX) {
+                result.maximize();
+            } else if (m_query_type == MERLIN_MAP_MAXIMIN) {
+                result.minimize();
+            }
 
             std::cout << "  - generated potential size: " << result.size() << std::endl;
             
@@ -944,7 +958,10 @@ bool map2u::generate_children(search_node* n, std::vector<search_node*>& chi) {
 
 bool map2u::can_prune(search_node* n) {
 
-    return false; // disable pruning for now
+    // Check if pruning is enabled
+    if (!m_pruning) {
+        return false; // disable pruning for now
+    }
 
 	// heuristic is an upper bound, hence can use to prune if value=0
 	if (n->get_heur() == 0.0) {
@@ -1065,6 +1082,7 @@ void map2u::bnb() {
     std::cout << "[BB] Number of variables: " << num_vars << std::endl;
     std::cout << "[BB] AND/OR search: " << (m_ao_search ? "yes" : "no") << std::endl;
     std::cout << "[BB] Enable caching: " << (m_caching ? "yes" : "no") << std::endl;
+    std::cout << "[BB] Enable pruning: " << (m_pruning ? "yes" : "no") << std::endl;
     std::cout << "[BB] Moment matching: " << m_matching_strategy << std::endl;
     std::cout << "[BB] Chain PT: " << (is_chain ? "yes" : "no") << std::endl;
 
@@ -1159,6 +1177,9 @@ void map2u::bnb() {
     if (_EmergencyMem != NULL) {
         delete[] _EmergencyMem;
         _EmergencyMem = NULL;
+    }
+    if (m_search_space->get_root() != NULL) {
+        delete m_search_space->get_root();
     }
 }
 

@@ -33,6 +33,7 @@
 #include <algorithm>
 
 #include "factor.h"
+#include "kmeans.h"
 
 namespace merlin {
 
@@ -416,6 +417,33 @@ public:
                 p_.push_back(f);
             } else {
                 factor f = pglb(undominated[i].second);
+                p_.push_back(f);
+            }
+        }
+    }
+
+    /// @brief Compute a kmeans clustering of the potential with PLUB per cluster.
+    /// @param k the number of clusters
+    void kmeans_bound(size_t k) {
+        
+        if (p_.size() > k) {
+            // Create the k-means clustering algorithm
+            kmeans cls(k, 10, "manhattan");
+            std::vector<std::vector<double> > bounds;
+            std::vector<point> points;
+            for (size_t i = 0; i < p_.size(); ++i) {
+                point p(i, p_[i].get_table());
+                points.push_back(p);
+            }
+
+            cls.run(points);
+            bounds = cls.get_bounds();
+
+            // Make the approximate potential
+            variable_set vs = p_[0].vars();
+            p_.clear();
+            for (size_t i = 0; i < bounds.size(); ++i) {
+                factor f(vs, bounds[i]);
                 p_.push_back(f);
             }
         }
@@ -1024,27 +1052,15 @@ public:
 		return out;
 	};
 
-    void approximate(size_t query_type, size_t potential_approx, size_t potential_size, double eps) {
-        if (query_type == MERLIN_MAP_MAXIMAX) {
-            if (potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
-                this->maximize();
-            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
-                this->covering(eps, true);
-            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING_BOUND) {
-                this->covering_bound(eps, true);
-            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
-                this->plub(potential_size);
-            }
-        } else if (query_type == MERLIN_MAP_MAXIMIN) {
-            if (potential_approx == MERLIN_POTENTIAL_APPROX_NONE) {
-                this->minimize();
-            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
-                this->covering(eps, false);
-            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING_BOUND) {
-                this->covering_bound(eps, false);
-            } else if (potential_approx == MERLIN_POTENTIAL_APPROX_GREATEST_LOBO) {
-                this->pglb(potential_size);
-            }
+    void approximate(size_t potential_approx, size_t potential_size, double eps) {
+        if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
+            this->covering(eps, true);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING_BOUND) {
+            this->covering_bound(eps, true);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
+            this->plub(potential_size);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_KMEANS_BOUND) {
+            this->kmeans_bound(potential_size);
         }
     }
 

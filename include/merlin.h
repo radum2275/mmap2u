@@ -83,6 +83,7 @@ protected:
 	size_t m_potential_size;			///< Potential maximum size (0 - no bounds)
 	bool m_moment_matching;				///< Do moment matching
 	bool m_caching;						///< Do caching (graph search)
+	bool m_pruning;						///< Do pruning (default: true)
 	
 private:
 	// Local members:
@@ -262,6 +263,7 @@ public:
 	void set_potential_size(size_t n);
 	void set_moment_matching(bool m);
 	void set_caching(bool c);
+	void set_pruning(bool p);
 
 	///
 	/// \brief Initialize the solver.

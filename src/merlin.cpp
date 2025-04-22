@@ -73,6 +73,7 @@ Merlin::Merlin() {
 	m_potential_size = 0;
 	m_moment_matching = false;
 	m_caching = false;
+	m_pruning = true;
 }
 
 ///
@@ -295,6 +296,9 @@ void Merlin::set_moment_matching(bool m) {
 }
 void Merlin::set_caching(bool c) {
 	m_caching = c;
+}
+void Merlin::set_pruning(bool p) {
+	m_pruning = p;
 }
 
 ///
@@ -741,6 +745,7 @@ int Merlin::run() {
 					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
 					<< "DoAndOr=0" << ","
 					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
+					<< "DoPruning=" << (m_pruning ? "1" : "0") << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);
@@ -761,6 +766,7 @@ int Merlin::run() {
 					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
 					<< "DoAndOr=1" << ","
 					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
+					<< "DoPruning=" << (m_pruning ? "1" : "0") << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.set_evidence(m_evidence);

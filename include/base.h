@@ -131,6 +131,7 @@
 #define MERLIN_POTENTIAL_APPROX_COVERING_BOUND  2   ///< Epsilon convering with PLUB/PGLB
 #define MERLIN_POTENTIAL_APPROX_LEAST_UPBO      3   ///< Pareto Least Upper Bound
 #define MERLIN_POTENTIAL_APPROX_GREATEST_LOBO   4   ///< Pareto Greatest Lower Bound
+#define MERLIN_POTENTIAL_APPROX_KMEANS_BOUND    5   ///< Clustering based approximation
 
 ///
 /// Input graphical models.

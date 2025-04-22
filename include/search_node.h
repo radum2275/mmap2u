@@ -62,8 +62,19 @@ class search_node {
             m_subsolved(1.0), m_cachable(false), m_pruned(false), 
             m_optimal(true), m_argmax(UNKNOWN) {};
         
-        ~search_node() {};
+        ~search_node() {
+            this->erase_children();
+        };
 
+        void erase_children() {
+            for (size_t i = 0; i < m_children.size(); ++i) {
+                if (m_children[i] != NULL) {
+                    delete m_children[i];
+                }
+            }
+            m_children.clear();
+        }
+        
         inline size_t get_variable() {
             return m_variable;
         }

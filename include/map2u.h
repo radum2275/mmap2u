@@ -108,7 +108,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,DoCaching,Seed,QueryType,TimeLimit,IBound,Iterations,DoMatch,DoAndOr );
+	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,DoCaching,DoPruning,Seed,QueryType,TimeLimit,IBound,Iterations,DoMatch,DoAndOr );
 
 
 	// Setting properties (directly or through property string):
@@ -133,7 +133,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,DoCaching=0,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2,Iterations=1,DoMatch=0,DoAndOr=0");
+			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,DoCaching=0,DoPruning=1,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2,Iterations=1,DoMatch=0,DoAndOr=0");
 			return;
 		}
 		m_verbose = 1;
@@ -159,6 +159,8 @@ public:
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_LEAST_UPBO;
 				} else if (asgn[1].compare("pglb") == 0) {
 					m_potential_approx = MERLIN_POTENTIAL_APPROX_GREATEST_LOBO;
+				} else if (asgn[1].compare("kmeans") == 0) {
+					m_potential_approx = MERLIN_POTENTIAL_APPROX_KMEANS_BOUND;
 				} else {
 					std::cout << "Unsupported potential approximation scheme!" << std::endl;
 				}
@@ -180,6 +182,9 @@ public:
 				break;
 			case Property::DoCaching:
 				m_caching = atol(asgn[1].c_str());
+				break;
+			case Property::DoPruning:
+				m_pruning = atol(asgn[1].c_str());
 				break;
 			case Property::Seed:
 				m_seed = atol(asgn[1].c_str());
@@ -312,6 +317,7 @@ protected:
 	size_t m_iterations;							///< Number of iterations for moment-matching
 	size_t m_matching_strategy;						///< Do moment matching (0 - none, 1 - single PLUB/PGLB, 2 - exhaustive, 3 - ...)
 	bool m_caching;									///< Do caching
+	bool m_pruning;									///< Do pruning
 	bool m_ao_search;								///< Do AND/OR search
 
 	std::stack<search_node*> m_stack; 				///< Search stack

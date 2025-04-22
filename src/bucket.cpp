@@ -57,8 +57,14 @@ std::vector<potential> bucket::create_partition(int ibound, size_t query_type,
             if (tmp.nvar() <= ibound) {
                 mb.multiply(pot);
                 found = true;
-                mb.approximate(query_type, potential_approx, potential_size, eps);
+                mb.approximate(potential_approx, potential_size, eps);
                 mb.set_original(false);
+                if (query_type == MERLIN_MAP_MAXIMAX) {
+                    mb.maximize();
+                } else if (query_type == MERLIN_MAP_MAXIMIN) {
+                    mb.minimize();
+                }
+                
                 break; // found the mini-bucket
             }
         }

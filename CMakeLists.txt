@@ -62,6 +62,7 @@ add_executable(loopy
     include/search_node.h
     include/bound_propagator.h
     include/pseudotree.h
+    include/kmeans.h
 )
 
 set(LINK_LIBS ${Boost_LIBRARIES})

@@ -115,6 +115,11 @@ public:
 		std::copy(t, t + t_.size(), t_.begin());
 	};
 
+	factor(const variable_set& vs, const std::vector<double>& t) {
+		t_ = t;
+		set_dims();
+	}
+
 	///
 	/// \brief Class destructor
 	///
@@ -223,6 +228,10 @@ public:
 		return &t_[0];
 	};
 
+	const std::vector<double>& get_table() {
+		return t_;
+	}
+	
 	///
 	/// \brief Size of the factor's table.
  	///

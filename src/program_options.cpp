@@ -56,7 +56,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("iterations,n", po::value<int>(), "number of iterations")
 			("threshold,T", po::value<double>(), "threshold for L2U convergence")
 			("epsilon", po::value<double>(), "epsilon for converting to an interval credal net and epsilon-coverings")
-			("potential-approx", po::value<std::string>(), "potential approximation method (none, covering, covbound, plub, pglb)")
+			("potential-approx", po::value<std::string>(), "potential approximation method (none, covering, covbound, plub, kmeans)")
 			("potential-size", po::value<size_t>(), "maximum potential size (0 - no bounds)")
 			("flip-proba", po::value<double>(), "random flip probability for MMAP")
 			("init-method", po::value<std::string>(), "initialization method for MMAP")
@@ -79,6 +79,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("num-evid", po::value<size_t>(), "number of extra LCN evidence sentences")
 			("moment-matching", po::value<size_t>(), "perform moment matching")
 			("caching", po::value<size_t>(), "perform caching")
+			("pruning", po::value<size_t>(), "enable/disable pruning")
 			("help,h", "produces this help message");
 
 		po::variables_map vm;
@@ -242,6 +243,12 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 		if (vm.count("caching")) {
 			size_t c = vm["caching"].as<size_t>();
 			opt->caching = (c == 0 ? false : true);
+		}
+
+		// enable/disable pruning
+		if (vm.count("pruning")) {
+			size_t c = vm["pruning"].as<size_t>();
+			opt->pruning = (c == 0 ? false : true);
 		}
 		
 		// parse the output format

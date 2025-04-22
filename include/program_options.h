@@ -77,6 +77,7 @@ struct ProgramOptions {
 	size_t potential_size;			///< Maximum potential size (0 - no bounds)
 	bool moment_matching;			///< Do moment matching
 	bool caching;					///< Do caching
+	bool pruning;					///< Do pruning
 
 public:
 
@@ -121,6 +122,7 @@ inline ProgramOptions::ProgramOptions() :
 		potential_approx("none"),
 		potential_size(0),
 		moment_matching(false),
-		caching(false) {};
+		caching(false),
+		pruning(true) {};
 
 #endif /* IBM_MERLIN_PROGRAM_OPTIONS_H_ */
