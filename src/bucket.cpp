@@ -57,14 +57,7 @@ std::vector<potential> bucket::create_partition(int ibound, size_t query_type,
             if (tmp.nvar() <= ibound) {
                 mb.multiply(pot);
                 found = true;
-                mb.approximate(potential_approx, potential_size, eps);
-                mb.set_original(false);
-                if (query_type == MERLIN_MAP_MAXIMAX) {
-                    mb.maximize();
-                } else if (query_type == MERLIN_MAP_MAXIMIN) {
-                    mb.minimize();
-                }
-                
+                mb.set_original(false);                
                 break; // found the mini-bucket
             }
         }
@@ -78,6 +71,17 @@ std::vector<potential> bucket::create_partition(int ibound, size_t query_type,
         }
     }
 	
+    // Approximate the potentials if required
+    for (size_t i = 0; i < partition.size(); ++i) {
+        potential& mb = partition[i];
+        mb.approximate(potential_approx, potential_size, eps);
+        if (query_type == MERLIN_MAP_MAXIMAX) {
+            mb.maximize();
+        } else if (query_type == MERLIN_MAP_MAXIMIN) {
+            mb.minimize();
+        }
+    }
+
     return partition;
 }
 

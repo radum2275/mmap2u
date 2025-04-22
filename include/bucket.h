@@ -31,7 +31,6 @@
 
 namespace merlin {
 
-
 ///
 /// @brief A bucket structure used by Credal Variable Elimination for P(e)
 ///
