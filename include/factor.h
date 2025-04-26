@@ -115,8 +115,15 @@ public:
 		std::copy(t, t + t_.size(), t_.begin());
 	};
 
-	factor(const variable_set& vs, const std::vector<double>& t) {
-		t_ = t;
+	///
+	/// \brief Constructor.
+	///
+	/// Creates a factor over a given set of variables and table.
+	///	\param vs 	The input set of variables
+	/// \param t 	The input table
+	///
+	factor(const variable_set& vs, const std::vector<double>& t) : 
+			v_(vs), t_(t), c_(-1) {
 		set_dims();
 	}
 

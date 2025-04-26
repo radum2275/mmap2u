@@ -1059,6 +1059,8 @@ public:
             this->covering_bound(eps, true);
         } else if (potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
             this->plub(potential_size);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_GREATEST_LOBO) {
+            this->pglb(potential_size);
         } else if (potential_approx == MERLIN_POTENTIAL_APPROX_KMEANS_BOUND) {
             this->kmeans_bound(potential_size);
         }

@@ -36,7 +36,7 @@ namespace merlin {
         
         return partition;
     }
-std::vector<potential> bucket::create_partition(int ibound, size_t query_type, 
+std::vector<potential> bucket::create_partition(int ibound, 
     size_t potential_approx, size_t potential_size, double eps) {
 
     std::vector<potential> partition;
@@ -75,11 +75,6 @@ std::vector<potential> bucket::create_partition(int ibound, size_t query_type,
     for (size_t i = 0; i < partition.size(); ++i) {
         potential& mb = partition[i];
         mb.approximate(potential_approx, potential_size, eps);
-        if (query_type == MERLIN_MAP_MAXIMAX) {
-            mb.maximize();
-        } else if (query_type == MERLIN_MAP_MAXIMIN) {
-            mb.minimize();
-        }
     }
 
     return partition;

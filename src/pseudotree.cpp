@@ -71,10 +71,10 @@ void pseudotree::build(graph& g, std::vector<size_t>& order, bool is_chain) {
 
         for (std::vector<size_t>::iterator it = order.begin(); it != order.end(); ++it) {
             size_t v = (*it);
-            std::cout << "...processing var:";
+            // std::cout << "...processing var:";
             std::set<size_t> N = gg.get_neighbors(v); // set of neighboring nodes
-            std::copy(N.begin(), N.end(), std::ostream_iterator<size_t>(std::cout, " "));
-            std::cout << std::endl;
+            // std::copy(N.begin(), N.end(), std::ostream_iterator<size_t>(std::cout, " "));
+            // std::cout << std::endl;
             m_width = std::max(m_width, N.size());
             insert_node(v, N, roots);
             gg.add_clique(N);

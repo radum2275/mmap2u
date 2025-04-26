@@ -66,12 +66,12 @@ public:
     
 class cluster {
 protected:
-    size_t m_id;
+    int m_id;
     std::vector<double> m_centroid;
     std::vector<point> m_points;
 
 public:
-    cluster(size_t id, point& centroid) {
+    cluster(int id, point& centroid) {
         m_id = id;
         for (size_t i = 0; i < centroid.get_dimensions(); ++i) {
             m_centroid.push_back(centroid.get_val(i));
@@ -99,7 +99,7 @@ public:
 
     void remove_all() { m_points.clear(); }
 
-    size_t get_id() { return m_id; }
+    int get_id() { return m_id; }
 
     point& get_point(size_t pos) { return m_points[pos]; }
 
