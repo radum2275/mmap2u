@@ -502,6 +502,7 @@ int Merlin::run() {
 			}
 		} else if (m_task == MERLIN_TASK_CONV) {
 			assert(m_outputFile.empty() == false);
+			std::cout << "[CONV] Output file: " << m_outputFile << std::endl;
 		} else if (m_task == MERLIN_TASK_GEN) {
 			// do nothing
 		}

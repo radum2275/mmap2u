@@ -236,7 +236,8 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 		
 		// parse forced bivalued
 		if (vm.count("force-bivalued")) {
-			opt->force_bivalued = vm["force-bivalued"].as<int>();
+			size_t f = vm["force-bivalued"].as<size_t>();
+			opt->force_bivalued = (f == 0 ? false : true);
 		}
 
 		// moment matching
