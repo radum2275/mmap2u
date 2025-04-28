@@ -149,7 +149,7 @@ public:
     /// @brief Constructor.
     /// @param v is the variable index of the node
     pseudotree_node(size_t v)
-        : m_variable(v), m_parent(NULL) {};
+        : m_variable(v), m_parent(NULL), m_depth(0) {};
 
     /// @brief Constructor.
     /// @param v is the variable index of the node
@@ -173,8 +173,22 @@ public:
         m_parent = p;
     }
 
+    /// @brief Get the parent of the current node.
+    /// @return the node's parent
     inline pseudotree_node* get_parent() {
         return m_parent;
+    }
+
+    /// @brief Get the depth of the current node.
+    /// @return the node's depth
+    inline size_t get_depth() {
+        return m_depth;
+    }
+
+    /// @brief Set the depth of the current node.
+    /// @param d the depth
+    inline void set_depth(size_t d) {
+        m_depth = d;
     }
 
     /// @brief Add a child to the current node.
@@ -233,6 +247,7 @@ protected:
     std::vector<pseudotree_node*> m_children;   ///< The children nodes in the pseudo tree
     std::set<size_t> m_subproblem;              ///< The subproblem rooted at the node (includes the node)
     std::vector<int> m_subproblem_map;          ///< Maps variables to their index in subprob assignment 
+    size_t m_depth;                             ///< Pseudo tree node depth (d(ch) = d(par) + 1)
 
 };
 

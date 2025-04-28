@@ -91,14 +91,15 @@ double map2u::build_heuristic() {
         size_t v = m_order[i];
         variable vx = var(v);
 
-        if (m_verbose > 0) {
-            std::cout << "[HEUR] Eliminating variable: " << v << std::endl;
-        }
 
         // Partition the bucket into mini-buckets
         std::vector<potential> partition = m_buckets[i].create_partition(
             m_ibound, m_potential_approx, m_potential_size, m_epsilon);
-        std::cout << "  - created " << partition.size() << " mini-buckets" << std::endl;
+
+        if (m_verbose > 0) {
+            std::cout << "[HEUR] Eliminating variable: " << v << std::endl;
+            std::cout << "  - created " << partition.size() << " mini-buckets" << std::endl;
+        }
 
         // Moment-matching between the mini-buckets
         if (m_matching_strategy > 0 && partition.size() > 1) { // match between multiple mini-buckets
@@ -169,7 +170,7 @@ double map2u::build_heuristic() {
 
     // Get the best score
     double global_bound = r.p()[0][0];
-    std::cout << "[HEUR] Global bound: " << global_bound << "(" << std::log10(global_bound) << ")" << std::endl;
+    std::cout << "[HEUR] Global bound: " << global_bound << " (" << std::log10(global_bound) << ")" << std::endl;
     std::cout << "[HEUR] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl; 
     std::cout << "[HEUR] Finished building the heuristic." << std::endl;
 

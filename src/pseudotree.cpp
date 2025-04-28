@@ -107,6 +107,12 @@ void pseudotree::build(graph& g, std::vector<size_t>& order, bool is_chain) {
         update_contexts(gg);
     }
 
+    // Update the pseudo tree height
+    m_height = 0;
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+        m_height = std::max(m_height, m_nodes[i]->get_depth());
+    }
+    
 	// Update the elimination order
 	m_order.push_back(dummy); // add dummy variable as last node in ordering
 }
@@ -330,6 +336,7 @@ const std::set<size_t>& pseudotree_node::update_subproblem(size_t num_vars) {
 			it != m_children.end(); ++it) {
         
         pseudotree_node* ch = (*it);
+        ch->set_depth(ch->get_parent()->get_depth() + 1);
 		const std::set<size_t>& child_vars = ch->update_subproblem(num_vars);
         std::copy(child_vars.begin(), child_vars.end(), 
             std::inserter(m_subproblem, m_subproblem.end()));
