@@ -300,6 +300,9 @@ void Merlin::set_caching(bool c) {
 void Merlin::set_pruning(bool p) {
 	m_pruning = p;
 }
+void Merlin::set_force_bivalued(bool f) {
+	m_force_bivalued = f;
+}
 
 ///
 /// \brief Read the credal net.
@@ -690,6 +693,7 @@ int Merlin::run() {
 				std::ostringstream oss;
 				oss << "Epsilon=" << m_epsilon << ","
 					<< "Verbose=" << m_verbose << ","
+					<< "BiValued=" << m_force_bivalued << ","
 					<< "Seed=" << m_seed;
 				s.set_properties(oss.str());
 				s.run();

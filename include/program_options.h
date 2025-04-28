@@ -78,6 +78,7 @@ struct ProgramOptions {
 	bool moment_matching;			///< Do moment matching
 	bool caching;					///< Do caching
 	bool pruning;					///< Do pruning
+	bool force_bivalued;			///< Force bivalued CN conversion
 
 public:
 
@@ -123,6 +124,7 @@ inline ProgramOptions::ProgramOptions() :
 		potential_size(0),
 		moment_matching(false),
 		caching(false),
-		pruning(true) {};
+		pruning(true),
+		force_bivalued(false) {};
 
 #endif /* IBM_MERLIN_PROGRAM_OPTIONS_H_ */

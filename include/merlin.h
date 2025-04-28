@@ -84,7 +84,8 @@ protected:
 	bool m_moment_matching;				///< Do moment matching
 	bool m_caching;						///< Do caching (graph search)
 	bool m_pruning;						///< Do pruning (default: true)
-	
+	bool m_force_bivalued;				///< Force bivalued CN conversion
+
 private:
 	// Local members:
 
@@ -264,7 +265,8 @@ public:
 	void set_moment_matching(bool m);
 	void set_caching(bool c);
 	void set_pruning(bool p);
-
+	void set_force_bivalued(bool f);
+	
 	///
 	/// \brief Initialize the solver.
 	///	\return *true* if succesful and *false* otherwise.

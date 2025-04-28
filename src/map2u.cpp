@@ -412,7 +412,8 @@ void map2u::wmb() {
                     used[ch] = true;
                     // buckets[i].add_potential(f.to_potential(false));
 
-                    potential p = f.to_potential(false);
+                    // potential p = f.to_potential(false);
+                    potential p = f.to_potential_multi();
                     p.approximate(m_potential_approx, m_potential_size, m_epsilon);
                     buckets[i].add_potential(p);
 

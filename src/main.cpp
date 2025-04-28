@@ -143,6 +143,7 @@ int main(int argc, char** argv) {
 	eng.set_moment_matching(opt->moment_matching);
 	eng.set_caching(opt->caching);
 	eng.set_pruning(opt->pruning);
+	eng.set_force_bivalued(opt->force_bivalued);
 	
 	// Run the inference
 	eng.init();

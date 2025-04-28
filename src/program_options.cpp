@@ -66,6 +66,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("max-flips", po::value<size_t>(), "max number of flips per iteration")
 			("taboo-size", po::value<size_t>(), "max configurations in the taboo list")
 			("cache-size", po::value<size_t>(), "max configurations in the cache")
+			("force-bivalued", po::value<size_t>(), "force conversion to bi-valued CN")
 			("nodes", po::value<size_t>(), "number of nodes")
 			("parents", po::value<size_t>(), "number of parents")
 			("instances", po::value<size_t>(), "number of instances")
@@ -233,6 +234,11 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			opt->iterations = vm["iterations"].as<int>();
 		}
 		
+		// parse forced bivalued
+		if (vm.count("force-bivalued")) {
+			opt->force_bivalued = vm["force-bivalued"].as<int>();
+		}
+
 		// moment matching
 		if (vm.count("moment-matching")) {
 			size_t mm = vm["moment-matching"].as<size_t>();
