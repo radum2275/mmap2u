@@ -412,8 +412,7 @@ void map2u::wmb() {
                     used[ch] = true;
                     // buckets[i].add_potential(f.to_potential(false));
 
-                    // potential p = f.to_potential(false);
-                    potential p = f.to_potential_multi();
+                    potential p = f.to_potential(false);
                     p.approximate(m_potential_approx, m_potential_size, m_epsilon);
                     buckets[i].add_potential(p);
 
@@ -559,6 +558,9 @@ void map2u::wmb() {
 
     // Get the best score
     m_best_cost = r.p()[0][0];
+    if (m_verbose > 0) {
+        std::cout << "Final constant potential is:" << std::endl << r << std::endl;
+    }
 
     // /*
     std::cout << "[CWMB] Generating the MAP configuration (bottom-up) ..." << std::endl;

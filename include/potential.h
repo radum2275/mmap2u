@@ -229,32 +229,34 @@ public:
     /// \brief Remove dominated factors by max (p-component)
     ///
     void maximize() {
-        std::vector<factor> cleaned;
+        std::vector<factor> elements; // Pareto front
+
         for (size_t i = 0; i < p_.size(); ++i) {
-            bool found_maximal = false;
-            for (size_t j = 0; j < p_.size(); ++j) {
-                if (i != j && p_[j] > p_[i]) {
-                    found_maximal = true;
+            factor& val = p_[i]; // new value to be added
+
+            size_t ii = 0;
+            bool not_pareto = false;
+            while ( ii < elements.size() ) {
+                if ( elements[ii] >= val ) { // val is dominated by element ii
+                    not_pareto = true;
                     break;
+                }
+                if ( elements[ii] <= val ) {
+                    // element ii is dominated by the new element, we remove element ii
+                    elements.erase ( elements.begin() +ii );
+                } else {
+                    ii++;
                 }
             }
 
-            if (!found_maximal) {
-                bool found = false;
-                for (size_t j = 0; j < cleaned.size(); ++j) {
-                    if (p_[i] == cleaned[j]) {
-                        found = true;
-                    }
-                }
-
-                if (!found) {
-                    cleaned.push_back(p_[i]);
-                }
+            // we have a new pareto element: add it to the current set
+            if (not_pareto == false) {
+                elements.push_back ( val );
             }
         }
 
-        // replace the potential's factors with the maximal ones
-        p_ = cleaned;
+        // replace the potential's factors with the minimal ones
+        p_ = elements;
     }
 
     ///
@@ -669,35 +671,38 @@ public:
     }
 
     ///
-    /// \brief Remove dominated factors by min (p-component)
+    /// \brief Remove all non-minimal (dominated) factors by min (p-component)
     ///
-    void minimize() {		
-        std::vector<factor> cleaned;
+    void minimize() {	
+ 
+        std::vector<factor> elements; // Pareto front
+
         for (size_t i = 0; i < p_.size(); ++i) {
-            bool found_minimal = false;
-            for (size_t j = 0; j < p_.size(); ++j) {
-                if (i != j && p_[j] < p_[i]) {
-                    found_minimal = true;
+            factor& val = p_[i]; // new value to be added
+
+            size_t ii = 0;
+            bool not_pareto = false;
+            while ( ii < elements.size() ) {
+                if ( elements[ii] <= val ) { // val is dominated by element ii
+                    not_pareto = true;
                     break;
+                }
+                if ( elements[ii] >= val ) {
+                    // element ii is dominated by the new element, we remove element ii
+                    elements.erase ( elements.begin() +ii );
+                } else {
+                    ii++;
                 }
             }
 
-            if (!found_minimal) {
-                bool found = false;
-                for (size_t j = 0; j < cleaned.size(); ++j) {
-                    if (p_[i] == cleaned[j]) {
-                        found = true;
-                    }
-                }
-
-                if (!found) {
-                    cleaned.push_back(p_[i]);
-                }
+            // we have a new pareto element: add it to the current set
+            if (not_pareto == false) {
+                elements.push_back ( val );
             }
         }
 
         // replace the potential's factors with the minimal ones
-        p_ = cleaned;
+        p_ = elements;
     }
 
     ///
