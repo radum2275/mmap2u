@@ -544,6 +544,11 @@ public:
 		return *this;
 	}
 	;
+	inline factor& scale(double rho) {
+		std::transform(t_.begin(), t_.end(), t_.begin(), unOpScaleE(rho));
+		return *this;
+	}
+	;
 
 	// Functors defined for unary operations (transformations) to the factor table:
 
@@ -611,6 +616,17 @@ public:
 		;
 		value operator()(value a) {
 			return std::floor(std::log(a) / std::log(1.0 + e));
+		}
+	};
+
+	struct unOpScaleE {
+		value e;
+		unOpScaleE(value E) :
+				e(E) {
+		}
+		;
+		value operator()(value a) {
+			return std::floor(a * e);
 		}
 	};
 
@@ -1596,7 +1612,7 @@ public:
 	/// @param val the corresponding table value
 	///
 	void set_value(std::map<size_t, size_t>& config, value val) {
-		assert(config.size() == v_.size());
+		assert(config.size() >= v_.size()); // scope is included in config
 		config_index idx(v_, true); // default big endian
 		size_t i = idx.convert(config);
 		assert(i >= 0 && i < t_.size());

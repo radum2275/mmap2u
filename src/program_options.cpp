@@ -195,6 +195,14 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MAP_AOBB;
 			} else if (alg.compare("aobf_map") == 0) {
 				opt->algorithm = MERLIN_ALGO_MAP_AOBF;
+			} else if (alg.compare("sls_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_SLS;
+			} else if (alg.compare("ts_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_TS;
+			} else if (alg.compare("sa_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_SA;
+			} else if (alg.compare("gls_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_GLS;
 			} else if (alg.compare("bn2cn") == 0) {
 				opt->algorithm = MERLIN_ALGO_CONVERT;
 			} else if (alg.compare("generator") == 0) {

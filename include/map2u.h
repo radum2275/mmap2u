@@ -108,8 +108,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,DoCaching,DoPruning,Seed,QueryType,TimeLimit,IBound,Iterations,DoMatch,DoAndOr );
-
+	MER_ENUM( Property , SearchMethod,PotentialApprox,Epsilon,PotentialSize,Verbose,DoCaching,DoPruning,Seed,QueryType,TimeLimit,IBound,Iterations,DoMatch,DoAndOr,InitTemp,MaxFlips,Alpha,FlipProb,CacheSize,TabooSize );
 
 	// Setting properties (directly or through property string):
 
@@ -133,7 +132,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,DoCaching=0,DoPruning=1,Seed=0,QueryType=maximin,TimeLimit=-1,IBound=2,Iterations=1,DoMatch=0,DoAndOr=0");
+			set_properties("SearchMethod=bnb,PotentialApprox=none,PotentialSize=0,Epsilon=0.1,Verbose=1,DoCaching=0,DoPruning=1,Seed=0,QueryType=maximax,TimeLimit=-1,IBound=2,Iterations=1,DoMatch=0,DoAndOr=0,InitTemp=100,MaxFlips=100,Alpha=0.2,FlipProb=0.2,CacheSize=100,TabooSize=100");
 			return;
 		}
 		m_verbose = 1;
@@ -189,6 +188,24 @@ public:
 			case Property::Seed:
 				m_seed = atol(asgn[1].c_str());
 				break;
+			case Property::FlipProb:
+				m_flip_probability = atof(asgn[1].c_str());
+				break;
+			case Property::Alpha:
+				m_alpha = atof(asgn[1].c_str());
+				break;
+			case Property::InitTemp:
+				m_init_temperature = atof(asgn[1].c_str());
+				break;
+			case Property::MaxFlips:
+				m_max_flips = (size_t) atol(asgn[1].c_str());
+				break;
+			case Property::TabooSize:
+				m_taboo_size = (size_t) atol(asgn[1].c_str());
+				break;
+			case Property::CacheSize:
+				m_cache_size = (size_t) atol(asgn[1].c_str());
+				break;
 			case Property::QueryType:
 				if (asgn[1].compare("maximax") == 0) {
 					m_query_type = MERLIN_MAP_MAXIMAX;
@@ -237,14 +254,30 @@ protected:
 	void dfs();
 	
 	///
-	/// \brief AND/OR Branch and Bound Search
-	///
-	void aobb();
-	
-	///
 	/// \brief Weighted Mini-Buckets
 	///
 	void wmb();
+
+	/// @brief Stochastic Local Search
+	void sls();
+
+	/// @brief Taboo Search
+	void ts();
+
+	/// @brief Simulated Annealing
+	void sa();
+
+	/// @brief Guided Local Search
+	void gls();
+
+	std::vector<int> init_config();
+	double score(const std::vector<int>& config);
+	std::pair<double, double> score_gls(const std::vector<int>& config);
+	std::string make_key(const std::vector<int>& config);
+	void find_neighbors(const std::vector<int>& config, 
+    	std::vector<std::vector<int> >& neighbors);
+	void update_penalties(std::vector<int>& config);
+	void scale_penalties();
 
 	///
 	/// \brief Convert a variable assignment to a string
@@ -333,6 +366,15 @@ protected:
 	std::vector<bucket> m_buckets;						///< The bucket structure
 	std::vector<std::vector<potential>> m_intermediate;	///< The intermediate potentials
 	std::vector<std::vector<potential>> m_augmented;	///< The augmented buckets
+
+  	size_t m_max_flips;								///< Maximum number of flips
+    double m_flip_probability;						///< Flip probability (SLS)
+	double m_init_temperature;						///< Initial temperature (SA)
+	double m_alpha;									///< Alpha value (SA)
+	size_t m_taboo_size;							///< Taboo list size (TS)
+    size_t m_cache_size;							///< Cache size
+ 	std::vector<potential> m_potentials;			///< Potentials
+	std::vector<factor> m_penalties;				///< Penalties used by GLS
 };
 
 } // namespace

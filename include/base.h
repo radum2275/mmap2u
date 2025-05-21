@@ -100,6 +100,10 @@
 #define MERLIN_ALGO_MAP_AOBB    2005        ///< AND/OR Branch and Bound with WMB heuristics for credal MAP
 #define MERLIN_ALGO_MAP_AOBF    2006        ///< AND/OR Best-First Search with WMB heuristics for credal MAP
 #define MERLIN_ALGO_MAP_BFS     2007        ///< Best-First Search with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_SLS     2008        ///< Stochastic Local Search
+#define MERLIN_ALGO_MAP_TS      2009        ///< Taboo Search
+#define MERLIN_ALGO_MAP_SA      2010        ///< Simulated Annealing
+#define MERLIN_ALGO_MAP_GLS     2011        ///< Guided Local Search
 
 ///
 /// Probabilistic inference tasks.

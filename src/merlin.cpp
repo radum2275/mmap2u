@@ -791,6 +791,114 @@ int Merlin::run() {
 				s.set_evidence(m_evidence);
 				s.run();
 				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_SLS) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=sls,"
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
+					<< "DoAndOr=1" << ","
+					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
+					<< "DoPruning=" << (m_pruning ? "1" : "0") << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_TS) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=ts,"
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
+					<< "DoAndOr=1" << ","
+					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
+					<< "DoPruning=" << (m_pruning ? "1" : "0") << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_SA) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=sa,"
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
+					<< "DoAndOr=1" << ","
+					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
+					<< "DoPruning=" << (m_pruning ? "1" : "0") << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
+			} else if (m_algorithm == MERLIN_ALGO_MAP_GLS) {
+				merlin::map2u s(m_gmo);
+				std::ostringstream oss;
+				oss << "SearchMethod=gls,"
+					<< "Epsilon=" << m_epsilon << ","
+					<< "PotentialApprox=" << m_potential_approx << ","
+					<< "PotentialSize=" << m_potential_size << ","
+					<< "Verbose=" << m_verbose << ","
+					<< "QueryType=" << m_query_type << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "IBound=" << m_ibound << ","
+					<< "Iterations=" << m_iterations << ","
+					<< "DoMatch=" << (m_moment_matching ? "1" : "0") << ","
+					<< "DoAndOr=1" << ","
+					<< "DoCaching=" << (m_caching ? "1" : "0") << ","
+					<< "DoPruning=" << (m_pruning ? "1" : "0") << ","
+					<< "FlipProb=" << m_flip_probability << ","
+					<< "InitTemp=" << m_init_temp << ","
+					<< "Alpha=" << m_alpha << ","
+					<< "MaxFlips=" << m_max_flips << ","
+					<< "CacheSize=" << m_cache_size << ","
+					<< "TimeLimit=" << m_time_limit << ","
+					<< "Seed=" << m_seed;
+				s.set_properties(oss.str());
+				s.set_evidence(m_evidence);
+				s.run();
+				s.write_solution(std::cout, m_outputFormat); 
 			}
 
 			out.close();
