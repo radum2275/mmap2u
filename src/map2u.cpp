@@ -1239,29 +1239,47 @@ std::string map2u::make_key(const std::vector<int>& config) {
     return oss.str();
 }
 
+// Get the 1-exchange neighborhood of the current configuration
 void map2u::find_neighbors(const std::vector<int>& config, 
     std::vector<std::vector<int> >& neighbors) {
 
     neighbors.clear();
-    for (size_t i = 0; i < m_query.size(); ++i) {
-        variable x = var(m_query[i]);
-        size_t num_states = x.states();
-        for (size_t val = 0; val < num_states; ++val) {
-            if (val != config[i]) {
-                std::vector<int> new_config(config);
-                new_config[i] = val;
-                neighbors.push_back(new_config);
-            }
-        }
+    
+    // Randomly select a variable
+    int n = (int) config.size();
+    size_t i = randi2(n);
+    variable x = var(m_query[i]);
+    size_t num_states = x.states();
+    for (size_t val = 0; val < num_states; ++val) {
+        std::vector<int> new_config(config);
+        new_config[x.label()] = val;
+        neighbors.push_back(new_config);
     }
 
     assert(neighbors.size() > 0);
 }
 
+// void map2u::find_neighbors(const std::vector<int>& config, 
+//     std::vector<std::vector<int> >& neighbors) {
+
+//     neighbors.clear();
+//     for (size_t i = 0; i < m_query.size(); ++i) {
+//         variable x = var(m_query[i]);
+//         size_t num_states = x.states();
+//         for (size_t val = 0; val < num_states; ++val) {
+//             if (val != config[i]) {
+//                 std::vector<int> new_config(config);
+//                 new_config[i] = val;
+//                 neighbors.push_back(new_config);
+//             }
+//         }
+//     }
+
+//     assert(neighbors.size() > 0);
+// }
+
 // Stochastic Local Search
 void map2u::sls() {
-    // Init the cache
-    std::map<std::string, double> cache;
 
     // Prologue
     std::cout << "[SLS] Running Stochastic Local Search for MAP" << std::endl;
@@ -1290,43 +1308,29 @@ void map2u::sls() {
     std::vector<int> best_config, current_config;
     double best_score = -1.0, current_score = -1.0;
     size_t total_flips = 0, total_hits = 0;
+    boost::uniform_01<boost::mt19937> rand01(m_rng);
 
     // Perform stochastic hill climbing for a number of iterations
     size_t num_sols = 0;
     bool timeout = false;
+    bool early_stop = false;
+    double prev_iter_score = -1.0;
     for (size_t iter = 1; iter <= m_iterations; ++iter) {
 
         // Start with a new random initial config
         current_config = init_config();
-        std::string ckey = make_key(current_config);
-        std::map<std::string, double>::iterator mi = cache.find(ckey);
-        if (mi != cache.end()) {
-            total_hits++;
-            current_score = mi->second;
-        } else {
-            current_score = score(current_config);
-            cache[ckey] = current_score;
-        }
-
+        current_score = score(current_config);
         std::cout << "[SLS] Iteration #" << iter << " ... " << std::endl;
         std::cout << "[SLS]   New initial solution: ";
         std::copy(current_config.begin(), current_config.end(), 
             std::ostream_iterator<int>(std::cout, " "));
         std::cout << std::endl;
         std::cout << "[SLS]   New initial score: " << current_score << " (" << std::log10(current_score) << ")" << std::endl;
-        std::vector<int> best_config_iter;
-        double best_score_iter = -1.0;
 
         // Keep track of the overall best configuration
         if (current_score > best_score) {
             best_config = current_config;
             best_score = current_score;
-        }
-
-        // Keep track of the best config during current iteration
-        if (current_score > best_score_iter) {
-            best_config_iter = current_config;
-            best_score_iter = current_score;
         }
 
         // Start flipping variables
@@ -1340,77 +1344,40 @@ void map2u::sls() {
             // Neighbors of the current config
             std::vector<std::vector<int> > neighbors;
             find_neighbors(current_config, neighbors);
-
+ 
             // Toss the coin (p)
-            double p = randu();
+            double p = rand01();
             if (p <= m_flip_probability) {
                 // Select a random neighbor
                 size_t j = randi2((int)neighbors.size()); // random neighbor
                 next_config = neighbors[j];
-                std::string ckey = make_key(next_config);
-                std::map<std::string, double>::iterator ci = cache.find(ckey);
-                if (ci != cache.end()) {
-                    total_hits++;
-                    next_score = ci->second;
-                } else {
-                    next_score = score(next_config);
-                    cache[ckey] = next_score;
-                }
+                next_score = score(next_config);
             } else {
                 // Find the best scoring neighbor
                 double best_neighbor_score = -1.0;
                 std::vector<int> best_neighbor;
                 for (size_t k = 0; k < neighbors.size(); ++k) {
-                    std::string nkey = make_key(neighbors[k]);
-                    double neighbor_score = -1.0;
-                    std::map<std::string, double>::iterator ci = cache.find(nkey);
-                    if (ci != cache.end()) {
-                        neighbor_score = ci->second;
-                    } else {
-                        neighbor_score = score(neighbors[k]);
-                        cache[nkey] = neighbor_score;
-                    }
-
+                    double neighbor_score = score(neighbors[k]);
                     if (neighbor_score > best_neighbor_score) {
                         best_neighbor_score = neighbor_score;
                         best_neighbor = neighbors[k];
                     }
                 }
 
-                // If best scoring neighbor is better then keep it
-                if (best_neighbor_score > current_score) {
-                    next_config = best_neighbor;
-                    next_score = best_neighbor_score;
-                } else { // Otherwise, select a random neighbor
-                    size_t j = randi2((int)neighbors.size()); // random neighbor
-                    next_config = neighbors[j];
-                    std::string ckey = make_key(next_config);
-                    std::map<std::string, double>::iterator ci = cache.find(ckey);
-                    if (ci != cache.end()) {
-                        total_hits++;
-                        next_score = ci->second;
-                    } else {
-                        next_score = score(next_config);
-                        cache[ckey] = next_score;
-                    }
-                }
+                // Select to the best neighbor
+                next_config = best_neighbor;
+                next_score = best_neighbor_score;
             }
-
-            // Check if next config score is better in the current iteration
-            if (next_score > best_score_iter) {
-                best_score_iter = next_score;
-                best_config_iter = next_config;
-
-                std::cout << "[SLS]   - found better solution [" << best_score_iter << " (" << std::log10(best_score_iter) << ")" << "] after " << total_flips << " flips: ";
-                std::copy(best_config_iter.begin(), best_config_iter.end(), 
-                    std::ostream_iterator<size_t>(std::cout, " "));
-                std::cout << std::endl;
-            } 
 
             // Keep track of the overall best config
             if (next_score > best_score) {
                 best_score = next_score;
                 best_config = next_config;
+                std::cout << "[SLS]   - found better solution [" << best_score << " (" << std::log10(best_score) << ")" << "] after " << total_flips << " flips: ";
+                std::copy(best_config.begin(), best_config.end(), 
+                    std::ostream_iterator<size_t>(std::cout, " "));
+                std::cout << std::endl;
+
                 num_sols++;                
             }
 
@@ -1418,26 +1385,32 @@ void map2u::sls() {
             current_config = next_config;
             current_score = next_score;
 
-            // Prune cache table if full
-            while (cache.size() > m_cache_size) {
-                cache.erase(cache.begin());
-            }
-
             // Check for timeout
             if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
-                std::cout << "[SLS] TIMEOUT" << std::endl;
                 timeout = true;
                 break;
             }
         }
         
+        // Check for early termination (current iter score not better than previous one)
+        if (best_score > prev_iter_score) {
+            prev_iter_score = best_score;
+            early_stop = false;
+        } else {
+            early_stop = true;
+        }
+
         // Check for timeout
         if (timeout) {
+            std::cout << "[SLS] Time limit reached." << std::endl;
+            break;
+        }
+        if (early_stop) {
+            std::cout << "[SLS] Early stop: no improvement from previous iteration." << std::endl;
             break;
         }
 
-        std::cout << "[SLS]   - finished after " << m_max_flips << " flips, " << total_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
-    }
+    } // end for iterations
 
     std::cout << "[SLS] Best solution: ";
     std::copy(best_config.begin(), best_config.end(), std::ostream_iterator<size_t>(std::cout, " "));
@@ -1446,7 +1419,6 @@ void map2u::sls() {
     std::cout << "[SLS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[SLS] Solutions found: " << num_sols << std::endl;
     std::cout << "[SLS] Total flips: " << total_flips << std::endl;
-    std::cout << "[SLS] Total hits: " << total_hits << std::endl;
     std::cout << "[SLS] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 
     // Save best solution (and score)
@@ -1456,8 +1428,6 @@ void map2u::sls() {
 
 // Taboo Search
 void map2u::ts() {
-    // Init the cache
-    std::map<std::string, double> cache;
 
     // Initialize the taboo search
     std::cout << "[TS] Running Taboo Search for MAP" << std::endl;
@@ -1492,24 +1462,15 @@ void map2u::ts() {
     // Perform taboo search for a number of iterations
     size_t num_sols = 0, total_flips = 0, total_hits = 0;
     bool timeout = false;
+    bool early_stop = false;
+    double prev_iter_score = -1.0;
     for (size_t iter = 1; iter <= m_iterations; ++iter) {
-
-        // Best config in the current iteration
-        std::vector<int> best_config_iter;
-        double best_score_iter = -1.0;
 
         // Generate a new random intial configuration
         current_config = init_config();
         taboo_list.clear();
         std::string ckey = make_key(current_config);
-        std::map<std::string, double>::iterator mi = cache.find(ckey);
-        if (mi != cache.end()) {
-            current_score = mi->second;
-            total_hits++;
-        } else {
-            current_score = score(current_config);
-            cache[ckey] = current_score;
-        }
+        current_score = score(current_config);
         std::cout << "[TS] Iteration #" << iter << " ... " << std::endl;
         std::cout << "[TS]   New initial solution: ";
         std::copy(current_config.begin(), current_config.end(), 
@@ -1521,12 +1482,6 @@ void map2u::ts() {
         if (current_score > best_score) {
             best_config = current_config;
             best_score = current_score;
-        }
-
-        // Keep track of the best config in the current iteration
-        if (current_score > best_score_iter) {
-            best_config_iter = current_config;
-            best_score_iter = current_score;
         }
 
         // Repeat for a number of max flips per iteration
@@ -1552,14 +1507,7 @@ void map2u::ts() {
                 std::map<std::string, bool>::iterator ti = taboo_list.find(nkey);
                 if (ti == taboo_list.end()) {
                     // Compute the score
-                    std::map<std::string, double>::iterator ci = cache.find(nkey);
-                    if (ci != cache.end()) {
-                        total_hits++;
-                        neighbor_score = ci->second;
-                    } else {
-                        neighbor_score = score(neighbors[k]);
-                        cache[nkey] = neighbor_score;
-                    }
+                    neighbor_score = score(neighbors[k]);
 
                     // Keep track of the best scoring neighbor not in taboo list
                     if (neighbor_score > best_neighbor_score) {
@@ -1575,35 +1523,21 @@ void map2u::ts() {
             if (best_neighbor_score == -1.0) {
                 size_t j = randi2((int)neighbors.size()); // random neighbor
                 next_config = neighbors[j];
-                std::string ckey = make_key(next_config);
-                std::map<std::string, double>::iterator ci = cache.find(ckey);
-                if (ci != cache.end()) {
-                    next_score = ci->second;
-                    total_hits++;
-                } else {
-                    next_score = score(next_config);
-                    cache[ckey] = next_score;
-                }
+                next_score = score(next_config);
             } else { // Found the best neighbor not in taboo list
                 next_config = best_neighbor;
                 next_score = best_neighbor_score;
-            }
-
-            // Keep track of best config in current iteration
-            if (next_score > best_score_iter) {
-                best_score_iter = next_score;
-                best_config_iter = next_config;
-
-                std::cout << "[TS]   - found better solution [" << best_score_iter << " (" << std::log10(best_score_iter) << ")" << "] after " << total_flips << " flips: ";
-                std::copy(best_config.begin(), best_config.end(), 
-                    std::ostream_iterator<size_t>(std::cout, " "));
-                std::cout << std::endl;
             }
 
             // Keep track of the overall best config
             if (next_score > best_score) {
                 best_config = next_config;
                 best_score = next_score;
+                std::cout << "[TS]   - found better solution [" << best_score << " (" << std::log10(best_score) << ")" << "] after " << total_flips << " flips: ";
+                std::copy(best_config.begin(), best_config.end(), 
+                    std::ostream_iterator<size_t>(std::cout, " "));
+                std::cout << std::endl;
+
                 num_sols++;
             }
 
@@ -1616,25 +1550,31 @@ void map2u::ts() {
                 taboo_list.erase(taboo_list.begin());
             }
 
-            // Prune cache table if full
-            while (cache.size() > m_cache_size) {
-                cache.erase(cache.begin());
-            }
-
             // Check for timeout
             if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
-                std::cout << "[TS] TIMEOUT" << std::endl;
                 timeout = true;
                 break;
             }
         }
 
+        // Check for early termination (current iter score not better than previous one)
+        if (best_score > prev_iter_score) {
+            prev_iter_score = best_score;
+            early_stop = false;
+        } else {
+            early_stop = true;
+        }
+
         // Check for timeout
         if (timeout) {
+            std::cout << "[TS] Time limit reached." << std::endl;
+            break;
+        }
+        if (early_stop) {
+            std::cout << "[TS] Early stop: no improvement from previous iteration." << std::endl;
             break;
         }
 
-        std::cout << "[TS]   - finished after " << total_flips << " flips, " << total_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     }
 
     std::cout << "[TS] Best solution: ";
@@ -1645,7 +1585,6 @@ void map2u::ts() {
     std::cout << "[TS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[TS] Solutions found: " << num_sols << std::endl;
     std::cout << "[TS] Total flips: " << total_flips << std::endl;
-    std::cout << "[TS] Total hits: " << total_hits << std::endl;
     std::cout << "[TS] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 
     // Save best solution (and score)
@@ -1656,8 +1595,6 @@ void map2u::ts() {
 
 // Simulated Annealing
 void map2u::sa() {
-    // Init the cache
-    std::map<std::string, double> cache;
 
     // Generate the initial configuration
     std::cout << "[SA] Running Simulated Annealing for MAP" << std::endl;
@@ -1675,7 +1612,7 @@ void map2u::sa() {
     std::copy(m_query.begin(), m_query.end(), std::ostream_iterator<size_t>(std::cout, " "));
     std::cout << std::endl;
 
-    std::cout << "[TS] Potentials created: ";
+    std::cout << "[SA] Potentials created: ";
     for (size_t j = 0; j < m_factors.size(); ++j) {
         interval& f = m_factors[j];
         potential p = f.to_potential(false);
@@ -1685,7 +1622,6 @@ void map2u::sa() {
 
     std::vector<int> current_config = init_config();
     double current_score = score(current_config);
-    cache[make_key(current_config)] = current_score;
 
     std::cout << "[SA] Initial solution: ";
     std::copy(current_config.begin(), current_config.end(), 
@@ -1701,6 +1637,8 @@ void map2u::sa() {
     // Perform simulated annealing for a number of iterations (restart annealing)
     size_t num_sols = 0;
     bool timeout = false;
+    bool early_stop = false;
+    double prev_iter_score = -1.0;
     for (size_t iter = 1; iter <= m_iterations; ++iter) {
 
         // Restart annealing from the current best config
@@ -1720,15 +1658,7 @@ void map2u::sa() {
             find_neighbors(current_config, neighbors);
             size_t j = randi2((int)neighbors.size()); // random neighbor
             next_config = neighbors[j];
-            std::string ckey = make_key(next_config);
-            std::map<std::string, double>::iterator ci = cache.find(ckey);
-            if (ci != cache.end()) {
-                next_score = ci->second;
-                total_hits++;
-            } else {
-                next_score = score(next_config);
-                cache[ckey] = next_score;
-            }
+            next_score = score(next_config);
 
             // Compute Metropolis acceptance criterion (mac)
             double delta = std::log10(next_score) - std::log10(current_score);            
@@ -1762,26 +1692,31 @@ void map2u::sa() {
                 T *= m_alpha;
             }
 
-            // Prune cache table if full
-            while (cache.size() > m_cache_size) {
-                cache.erase(cache.begin());
-            }
-
             // Check for timeout
             if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
-                std::cout << "[SA] TIMOUT" << std::endl;
                 timeout = true;
                 break;
             }
         }
 
+        // Check for early termination (current iter score not better than previous one)
+        if (best_score > prev_iter_score) {
+            prev_iter_score = best_score;
+            early_stop = false;
+        } else {
+            early_stop = true;
+        }
+
         // Check for timeout
         if (timeout) {
+            std::cout << "[SA] Time limit reached." << std::endl;
+            break;
+        }
+        if (early_stop) {
+            std::cout << "[SA] Early stop: no improvement from previous iteration." << std::endl;
             break;
         }
 
-        std::cout << "[SA]   - final temperature: " << T << std::endl;
-        std::cout << "[SA]   - finished after " << total_flips << " flips, " << total_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     }
 
     std::cout << "[SA] Best solution: ";
@@ -1792,7 +1727,6 @@ void map2u::sa() {
     std::cout << "[SA] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[SA] Solutions found: " << num_sols << std::endl;
     std::cout << "[SA] Total flips: " << total_flips << std::endl;
-    std::cout << "[SA] Total hits: " << total_hits << std::endl;
     std::cout << "[SA] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 
     // Save best solution (and score)
@@ -1871,9 +1805,6 @@ std::pair<double, double> map2u::score_gls(const std::vector<int>& config) {
 // Guided Local Search
 void map2u::gls() {
 
-    // Init the cache
-    std::map<std::string, std::pair<double, double> > cache;
-
     // Prologue
     std::cout << "[GLS] Running Guided Local Search for MAP" << std::endl;
     std::cout << "[GLS] Total iterations: " << m_iterations << std::endl;
@@ -1910,27 +1841,20 @@ void map2u::gls() {
     double best_score = -infty(), current_score = -infty();
     double best_cost = -infty(), current_cost = -infty();
     size_t total_flips = 0, total_hits = 0;
+    boost::uniform_01<boost::mt19937> rand01(m_rng);
 
     // Perform GLS for a number of iterations
     size_t num_sols = 0;
     bool timeout = false;
+    bool early_stop = false;
+    double prev_iter_score = -infty();
     for (size_t iter = 1; iter <= m_iterations; ++iter) {
 
         // Start with a new random initial config
         current_config = init_config();
-        std::string ckey = make_key(current_config);
-        std::map<std::string, std::pair<double, double> >::iterator mi = cache.find(ckey);
-        if (mi != cache.end()) {
-            total_hits++;
-            std::pair<double, double> cval = mi->second;
-            current_score = cval.second; // objective val
-            current_cost = cval.first; // probability val
-        } else {
-            std::pair<double, double> cval = score_gls(current_config);
-            current_score = cval.second; // objective val
-            current_cost = cval.first; // probability val
-            cache[ckey] = cval;
-        }
+        std::pair<double, double> cval = score_gls(current_config);
+        current_score = cval.second; // objective val
+        current_cost = cval.first; // probability val
 
         std::cout << "[GLS] Iteration #" << iter << " ... " << std::endl;
         std::cout << "[GLS]   New initial solution: ";
@@ -1938,21 +1862,12 @@ void map2u::gls() {
             std::ostream_iterator<int>(std::cout, " "));
         std::cout << std::endl;
         std::cout << "[GLS]   New initial score: " << current_score << " [" << current_cost << " (" << std::log10(current_cost) << ")]" << std::endl;
-        std::vector<int> best_config_iter;
-        double best_score_iter = -infty(), best_cost_iter = -infty();
 
         // Keep track of the overall best configuration
         if (current_score > best_score) {
             best_config = current_config;
             best_score = current_score;
             best_cost = current_cost;
-        }
-
-        // Keep track of the best config during current iteration
-        if (current_score > best_score_iter) {
-            best_config_iter = current_config;
-            best_score_iter = current_score;
-            best_cost_iter = current_cost;
         }
 
         // Start flipping variables (one round of SLS)
@@ -1968,91 +1883,46 @@ void map2u::gls() {
             find_neighbors(current_config, neighbors);
 
             // Toss the coin (p)
-            double p = randu();
+            double p = rand01();
             if (p <= m_flip_probability) {
                 // Select a random neighbor
                 size_t j = randi2((int)neighbors.size()); // random neighbor
                 next_config = neighbors[j];
-                std::string ckey = make_key(next_config);
-                std::map<std::string, std::pair<double, double> >::iterator ci = cache.find(ckey);
-                if (ci != cache.end()) {
-                    total_hits++;
-                    std::pair<double, double> cval = ci->second;
-                    next_score = cval.second;
-                    next_cost = cval.first;
-                } else {
-                    std::pair<double, double> cval = score_gls(next_config);
-                    next_score = cval.second;
-                    next_cost = cval.first;
-                    cache[ckey] = cval;
-                }
+                std::pair<double, double> cval = score_gls(next_config);
+                next_score = cval.second;
+                next_cost = cval.first;
             } else {
                 // Find the best scoring neighbor
                 double best_neighbor_score = -infty(), best_neighbor_cost = -infty();
                 std::vector<int> best_neighbor;
                 for (size_t k = 0; k < neighbors.size(); ++k) {
-                    std::string nkey = make_key(neighbors[k]);
                     double neighbor_score = -1.0, neighbor_cost = -1.0;
-                    std::map<std::string, std::pair<double, double> >::iterator ci = cache.find(nkey);
-                    if (ci != cache.end()) {
-                        std::pair<double, double> cval = ci->second;
-                        neighbor_score = cval.second;
-                        neighbor_cost = cval.first;
-                    } else {
-                        std::pair<double, double> cval = score_gls(neighbors[k]);
-                        neighbor_score = cval.second;
-                        neighbor_cost = cval.first;
-                        cache[nkey] = cval;
-                    }
+                    std::pair<double, double> cval = score_gls(neighbors[k]);
+                    neighbor_score = cval.second;
+                    neighbor_cost = cval.first;
 
-                    if (neighbor_score > best_neighbor_score) {
+                    if (neighbor_score > best_neighbor_score) { // 
                         best_neighbor_score = neighbor_score;
                         best_neighbor_cost = neighbor_cost;
                         best_neighbor = neighbors[k];
                     }
                 }
 
-                // If best scoring neighbor is better then keep it
-                if (best_neighbor_score > current_score) {
-                    next_config = best_neighbor;
-                    next_score = best_neighbor_score;
-                    next_cost = best_neighbor_cost;
-                } else { // Otherwise, select a random neighbor
-                    size_t j = randi2((int)neighbors.size()); // random neighbor
-                    next_config = neighbors[j];
-                    std::string ckey = make_key(next_config);
-                    std::map<std::string, std::pair<double, double> >::iterator ci = cache.find(ckey);
-                    if (ci != cache.end()) {
-                        total_hits++;
-                        std::pair<double, double> cval = ci->second;
-                        next_score = cval.second;
-                        next_cost = cval.first;
-                    } else {
-                        std::pair<double, double> cval = score_gls(next_config);
-                        next_score = cval.second;
-                        next_cost = cval.first;
-                        cache[ckey] = cval;
-                    }
-                }
+                next_config = best_neighbor;
+                next_score = best_neighbor_score;
+                next_cost = best_neighbor_cost;
             }
 
-            // Check if next config score is better in the current iteration
-            if (next_score > best_score_iter) {
-                best_score_iter = next_score;
-                best_cost_iter = next_cost;
-                best_config_iter = next_config;
-
-                std::cout << "[SLS]   - found better solution: " << best_score_iter << " [" << best_cost_iter << " (" << std::log10(best_cost_iter) << ")]: ";
-                std::copy(best_config_iter.begin(), best_config_iter.end(), 
-                    std::ostream_iterator<size_t>(std::cout, " "));
-                std::cout << std::endl;
-            } 
-
             // Keep track of the overall best config
-            if (next_score > best_score) {
+            if (next_score > best_score) { // 
                 best_score = next_score;
                 best_cost = next_cost;
                 best_config = next_config;
+                std::cout << "[GLS]   - found better solution: " << best_score << " [" << best_cost << " (" << std::log10(best_cost) << ")]: ";
+                std::copy(best_config.begin(), best_config.end(), 
+                    std::ostream_iterator<size_t>(std::cout, " "));
+                std::cout << std::endl;
+
                 num_sols++;                
             }
 
@@ -2061,31 +1931,38 @@ void map2u::gls() {
             current_score = next_score;
             current_cost = next_cost;
 
-            // Prune cache table if full
-            while (cache.size() > m_cache_size) {
-                cache.erase(cache.begin());
+            if (flip % 100 == 0) {
+                // Update penalties
+                update_penalties(best_config);
+
+                // Scale penalties
+                scale_penalties();
             }
 
             // Check for timeout
             if (m_time_limit > 0 && (timeSystem() - m_start_time) > m_time_limit) {
-                std::cout << "[GLS] TIMEOUT" << std::endl;
                 timeout = true;
                 break;
             }
         } // end for
         
-        // Update penalties
-        update_penalties(best_config);
-
-        // Scale penalties
-        scale_penalties();
+        // Check for early termination (current iter score not better than previous one)
+        if (best_cost > prev_iter_score) {
+            prev_iter_score = best_cost;
+            early_stop = false;
+        } else {
+            early_stop = true;
+        }
 
         // Check for timeout
         if (timeout) {
+            std::cout << "[GLS] Time limit reached." << std::endl;
             break;
         }
-
-        std::cout << "[GLS]   - finished after " << m_max_flips << " flips, " << total_hits << " hits and " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+        if (early_stop) {
+            std::cout << "[GLS] Early stop: no improvement from previous iteration." << std::endl;
+            break;
+        }
     }
 
     std::cout << "[GLS] Best solution: ";
@@ -2096,7 +1973,6 @@ void map2u::gls() {
     std::cout << "[GLS] CPU time: " << (timeSystem() - m_start_time) << " seconds" << std::endl;
     std::cout << "[GLS] Solutions found: " << num_sols << std::endl;
     std::cout << "[GLS] Total flips: " << total_flips << std::endl;
-    std::cout << "[GLS] Total hits: " << total_hits << std::endl;
     std::cout << "[GLS] Timeout: " << (timeout ? "yes" : "no") << std::endl;
 
     // Save best solution (and score)

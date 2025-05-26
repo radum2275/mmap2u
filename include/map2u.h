@@ -35,6 +35,8 @@
 #include "bound_propagator.h"
 #include "pseudotree.h"
 
+#include "boost/random.hpp"
+#include "boost/generator_iterator.hpp"
 namespace merlin {
 
 #define SEARCH_TIMEOUT 1000
@@ -137,6 +139,7 @@ public:
 		}
 		m_verbose = 1;
 		m_solved = false;
+		m_rng.seed(m_seed); // initialize the RNG 
 		std::vector<std::string> strs = merlin::split(opt, ',');
 		for (size_t i = 0; i < strs.size(); ++i) {
 			std::vector<std::string> asgn = merlin::split(strs[i], '=');
@@ -375,6 +378,8 @@ protected:
     size_t m_cache_size;							///< Cache size
  	std::vector<potential> m_potentials;			///< Potentials
 	std::vector<factor> m_penalties;				///< Penalties used by GLS
+
+	boost::mt19937 m_rng;							///< Random number generator (boost)
 };
 
 } // namespace
