@@ -25,6 +25,7 @@
 
 #include "merlin.h"
 #include "program_options.h"
+#include "quickhull.h"
 
 std::string fileToString(std::string filename) {
 	std::ostringstream oss(std::ios::out | std::ios::binary); // *** binary
@@ -36,6 +37,56 @@ std::string fileToString(std::string filename) {
 	}
 
 	return oss.str();
+}
+
+int test_quickhull() {
+	using F = float;
+	using value_type = double;
+    constexpr std::size_t dim = 5;
+    using Points = std::vector<std::array<F, dim>>;
+
+    Points points(1500); // input
+
+    { // fill it somehow (use real data)
+        std::mt19937 gen;
+        for (auto & [x, y, z, t, u] : points) {
+            x = std::generate_canonical<F, std::numeric_limits<F>::digits>(gen);
+            y = std::generate_canonical<F, std::numeric_limits<F>::digits>(gen);
+            z = std::generate_canonical<F, std::numeric_limits<F>::digits>(gen);
+			t = std::generate_canonical<F, std::numeric_limits<F>::digits>(gen);
+			u = std::generate_canonical<F, std::numeric_limits<F>::digits>(gen);
+        }
+    }
+
+    const auto eps = std::numeric_limits<F>::epsilon();
+    quick_hull<typename Points::const_iterator> qh{dim, eps};
+    qh.add_points(std::cbegin(points), std::cend(points));
+    auto initial_simplex = qh.get_affine_basis();
+    if (initial_simplex.size() < dim + 1) {
+		std::cout << "Degenerated input set." << std::endl;
+        return 1; // degenerated input set
+    }
+    qh.create_initial_simplex(std::cbegin(initial_simplex), std::prev(std::cend(initial_simplex)));
+    qh.create_convex_hull();
+    if (!qh.check()) {
+		std::cout << "Resulted structure is not convex (generally due to precision errors)." << std::endl;
+        return 1; // resulted structure is not convex (generally due to precision errors)
+    }
+
+    // qh.facets_; // use as result
+	std::cout << "Finished QuickHull." << std::endl;
+	std::cout << "QH size (facets): " << qh.facets_.size() << std::endl;
+    for (auto const & facet_ : qh.facets_) {
+        auto const & vertices_ = facet_.vertices_;
+        for (auto const & vertex_ : vertices_) {
+            for (value_type const & coordinate_ : *vertex_) {
+                //std::cout << coordinate_ << ' ';
+            }
+            //std::cout << '\n';
+        }
+	}
+
+	return 0;
 }
 
 int main(int argc, char** argv) {
@@ -87,12 +138,21 @@ int main(int argc, char** argv) {
 	eng.set_num_samples(opt->num_samples);
 	eng.set_num_extras(opt->num_extras);
 	eng.set_num_evid(opt->num_evid);
+	eng.set_potential_approx(opt->potential_approx);
+	eng.set_potential_size(opt->potential_size);
+	eng.set_moment_matching(opt->moment_matching);
+	eng.set_caching(opt->caching);
+	eng.set_pruning(opt->pruning);
+	eng.set_force_bivalued(opt->force_bivalued);
 	
 	// Run the inference
 	eng.init();
 	int status = eng.run();
 
 	delete opt;
+
+	// test_quickhull();
+
 	return status;
 }
 

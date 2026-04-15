@@ -79,6 +79,12 @@ protected:
 	size_t m_num_samples;				///< Number of sample queries to generate
 	size_t m_num_extras;				///< Number of extra LCN statements to generate
 	size_t m_num_evid;					///< Number of evidence variables in LCN
+	std::string m_potential_approx;		///< Potential approximation method (none, covering, lpub, gplb)
+	size_t m_potential_size;			///< Potential maximum size (0 - no bounds)
+	bool m_moment_matching;				///< Do moment matching
+	bool m_caching;						///< Do caching (graph search)
+	bool m_pruning;						///< Do pruning (default: true)
+	bool m_force_bivalued;				///< Force bivalued CN conversion
 
 private:
 	// Local members:
@@ -254,7 +260,13 @@ public:
 	void set_num_samples(size_t s);
 	void set_num_extras(size_t e);
 	void set_num_evid(size_t e);
-
+	void set_potential_approx(std::string s);
+	void set_potential_size(size_t n);
+	void set_moment_matching(bool m);
+	void set_caching(bool c);
+	void set_pruning(bool p);
+	void set_force_bivalued(bool f);
+	
 	///
 	/// \brief Initialize the solver.
 	///	\return *true* if succesful and *false* otherwise.

@@ -94,6 +94,16 @@
 #define MERLIN_ALGO_MMAP_DFS    1011        ///< Naive brute-force approach for exact CMMAP
 #define MERLIN_ALGO_MMAP_CMBE   1012        ///< Credal Mini-Buckets for MMAP
 
+#define MERLIN_ALGO_MAP_WMB     2002        ///< Credal Weighted Mini-Buckets for MAP
+#define MERLIN_ALGO_MAP_DFS     2003        ///< Depth-First Search for credal MAP
+#define MERLIN_ALGO_MAP_BNB     2004        ///< Branch and Bound with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_AOBB    2005        ///< AND/OR Branch and Bound with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_AOBF    2006        ///< AND/OR Best-First Search with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_BFS     2007        ///< Best-First Search with WMB heuristics for credal MAP
+#define MERLIN_ALGO_MAP_SLS     2008        ///< Stochastic Local Search
+#define MERLIN_ALGO_MAP_TS      2009        ///< Taboo Search
+#define MERLIN_ALGO_MAP_SA      2010        ///< Simulated Annealing
+#define MERLIN_ALGO_MAP_GLS     2011        ///< Guided Local Search
 
 ///
 /// Probabilistic inference tasks.
@@ -102,6 +112,7 @@
 #define MERLIN_TASK_CONV    30          ///< Convert/translate 
 #define MERLIN_TASK_MMAP    40          ///< Marginal MAP (given evidence)
 #define MERLIN_TASK_GEN     50          ///< Problem generator
+#define MERLIN_TASK_MAP     60          ///< MAP (given evidence)
 
 ///
 /// Credal MMAP type.
@@ -109,6 +120,22 @@
 #define MERLIN_MMAP_MAXIMIN     0
 #define MERLIN_MMAP_MAXIMAX     1
 #define MERLIN_MMAP_INTERVAL    2
+
+///
+/// Credal MAP type.
+///
+#define MERLIN_MAP_MAXIMIN     0
+#define MERLIN_MAP_MAXIMAX     1
+
+///
+/// Potential approximation methods.
+///
+#define MERLIN_POTENTIAL_APPROX_NONE            0   ///< No approximation
+#define MERLIN_POTENTIAL_APPROX_COVERING        1   ///< Epsilon covering
+#define MERLIN_POTENTIAL_APPROX_COVERING_BOUND  2   ///< Epsilon convering with PLUB/PGLB
+#define MERLIN_POTENTIAL_APPROX_LEAST_UPBO      3   ///< Pareto Least Upper Bound
+#define MERLIN_POTENTIAL_APPROX_GREATEST_LOBO   4   ///< Pareto Greatest Lower Bound
+#define MERLIN_POTENTIAL_APPROX_KMEANS_BOUND    5   ///< Clustering based approximation
 
 ///
 /// Input graphical models.
@@ -122,5 +149,13 @@
 ///
 #define MERLIN_OUTPUT_UAI	10			///< UAI output format (default)
 #define MERLIN_OUTPUT_JSON	11			///< JSON output format
+
+///
+/// Search node types
+///
+#define MERLIN_NODE_AND 1
+#define MERLIN_NODE_OR 2
+
+#define UNKNOWN -1
 
 #endif /* IBM_MERLIN_BASE_H_ */

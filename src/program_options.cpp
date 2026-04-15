@@ -55,7 +55,9 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("debug,d", "enable debug mode")
 			("iterations,n", po::value<int>(), "number of iterations")
 			("threshold,T", po::value<double>(), "threshold for L2U convergence")
-			("epsilon", po::value<double>(), "epsilon for converting to an interval credal net")
+			("epsilon", po::value<double>(), "epsilon for converting to an interval credal net and epsilon-coverings")
+			("potential-approx", po::value<std::string>(), "potential approximation method (none, covering, covbound, plub, kmeans)")
+			("potential-size", po::value<size_t>(), "maximum potential size (0 - no bounds)")
 			("flip-proba", po::value<double>(), "random flip probability for MMAP")
 			("init-method", po::value<std::string>(), "initialization method for MMAP")
 			("output-format,O", po::value<std::string>(), "output file format (required)")
@@ -64,6 +66,7 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("max-flips", po::value<size_t>(), "max number of flips per iteration")
 			("taboo-size", po::value<size_t>(), "max configurations in the taboo list")
 			("cache-size", po::value<size_t>(), "max configurations in the cache")
+			("force-bivalued", po::value<size_t>(), "force conversion to bi-valued CN")
 			("nodes", po::value<size_t>(), "number of nodes")
 			("parents", po::value<size_t>(), "number of parents")
 			("instances", po::value<size_t>(), "number of instances")
@@ -75,6 +78,9 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			("num-samples", po::value<size_t>(), "number of sample queries to generate")
 			("num-extras", po::value<size_t>(), "number of extra LCN statements to generate")
 			("num-evid", po::value<size_t>(), "number of extra LCN evidence sentences")
+			("moment-matching", po::value<size_t>(), "perform moment matching")
+			("caching", po::value<size_t>(), "perform caching")
+			("pruning", po::value<size_t>(), "enable/disable pruning")
 			("help,h", "produces this help message");
 
 		po::variables_map vm;
@@ -147,6 +153,8 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->task = MERLIN_TASK_CONV;
 			} else if (task.compare("GEN") == 0) {
 				opt->task = MERLIN_TASK_GEN;
+			} else if (task.compare("MAP") == 0) {
+				opt->task = MERLIN_TASK_MAP;
 			} else {
 				std::string err_msg("Inference task ");
 				err_msg += task + " is not supported.";
@@ -177,6 +185,24 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 				opt->algorithm = MERLIN_ALGO_MMAP_CMBE;
 			} else if (alg.compare("dfs") == 0) {
 				opt->algorithm = MERLIN_ALGO_MMAP_DFS;
+			} else if (alg.compare("dfs_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_DFS;
+			} else if (alg.compare("bb_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_BNB;
+			} else if (alg.compare("wmb_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_WMB;
+			} else if (alg.compare("aobb_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_AOBB;
+			} else if (alg.compare("aobf_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_AOBF;
+			} else if (alg.compare("sls_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_SLS;
+			} else if (alg.compare("ts_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_TS;
+			} else if (alg.compare("sa_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_SA;
+			} else if (alg.compare("gls_map") == 0) {
+				opt->algorithm = MERLIN_ALGO_MAP_GLS;
 			} else if (alg.compare("bn2cn") == 0) {
 				opt->algorithm = MERLIN_ALGO_CONVERT;
 			} else if (alg.compare("generator") == 0) {
@@ -215,7 +241,31 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 		if (vm.count("iterations")) {
 			opt->iterations = vm["iterations"].as<int>();
 		}
+		
+		// parse forced bivalued
+		if (vm.count("force-bivalued")) {
+			size_t f = vm["force-bivalued"].as<size_t>();
+			opt->force_bivalued = (f == 0 ? false : true);
+		}
 
+		// moment matching
+		if (vm.count("moment-matching")) {
+			size_t mm = vm["moment-matching"].as<size_t>();
+			opt->moment_matching = (mm == 0 ? false : true);
+		}
+
+		// caching
+		if (vm.count("caching")) {
+			size_t c = vm["caching"].as<size_t>();
+			opt->caching = (c == 0 ? false : true);
+		}
+
+		// enable/disable pruning
+		if (vm.count("pruning")) {
+			size_t c = vm["pruning"].as<size_t>();
+			opt->pruning = (c == 0 ? false : true);
+		}
+		
 		// parse the output format
 		if (vm.count("output-format")) {
 			std::string format = vm["output-format"].as<std::string>();
@@ -235,6 +285,16 @@ ProgramOptions* parseCommandLine(int argc, char** argv) {
 			opt->epsilon = vm["epsilon"].as<double>();
 		}
 
+		// parse potential approximation
+		if (vm.count("potential-approx")) {
+			opt->potential_approx = vm["potential-approx"].as<std::string>();
+		}
+
+		// parse potential size
+		if (vm.count("potential-size")) {
+			opt->potential_size = vm["potential-size"].as<size_t>();
+		}
+		
 		// parse random flip probability
 		if (vm.count("flip-proba")) {
 			opt->flip_probability = vm["flip-proba"].as<double>();

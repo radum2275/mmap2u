@@ -67,9 +67,16 @@ public:
 	///
 	/// A const iterator for the variable set.
 	///
-	class const_iterator :
-			public std::iterator<std::bidirectional_iterator_tag, variable, ptrdiff_t,
-			const variable*, const variable&> {
+	// [deprecated C++11 iterator]
+	// class const_iterator : public std::iterator<std::bidirectional_iterator_tag, variable, ptrdiff_t, const variable*, const variable&> {
+	class const_iterator { // new C++17 iterator
+	public:
+        // iterator traits
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = variable;
+        using difference_type = ptrdiff_t;
+        using pointer = const variable*;
+        using reference = const variable&;
 	private:
 		size_t m_i;
 		variable_set const* m_vs;
@@ -682,6 +689,10 @@ public:
 	///
 	bool contains(const variable& v) const {
 		return std::binary_search(m_v.begin(), m_v.end(), v.label());
+	}
+
+	bool has_variable(size_t v) const {
+		return std::binary_search(m_v.begin(), m_v.end(), v);
 	}
 
 	///

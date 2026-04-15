@@ -116,6 +116,18 @@ public:
 	};
 
 	///
+	/// \brief Constructor.
+	///
+	/// Creates a factor over a given set of variables and table.
+	///	\param vs 	The input set of variables
+	/// \param t 	The input table
+	///
+	factor(const variable_set& vs, const std::vector<double>& t) : 
+			v_(vs), t_(t), c_(-1) {
+		set_dims();
+	}
+
+	///
 	/// \brief Class destructor
 	///
 	virtual ~factor() {};
@@ -223,6 +235,10 @@ public:
 		return &t_[0];
 	};
 
+	const std::vector<double>& get_table() {
+		return t_;
+	}
+	
 	///
 	/// \brief Size of the factor's table.
  	///
@@ -511,6 +527,29 @@ public:
 	}
 	;
 
+	///
+	/// \brief Phi log value transformation i.e., floor(log(v) / log(1+e)).
+	///
+	/// Set all table values to their phi log values. This is an in-place
+	/// trasformation.
+	///	\return the reference to the transformed factor.
+	///				
+	inline factor& phi_max(double eps) {
+		std::transform(t_.begin(), t_.end(), t_.begin(), unOpPhiMaxE(eps));
+		return *this;
+	}
+	;
+	inline factor& phi_min(double eps) {
+		std::transform(t_.begin(), t_.end(), t_.begin(), unOpPhiMinE(eps));
+		return *this;
+	}
+	;
+	inline factor& scale(double rho) {
+		std::transform(t_.begin(), t_.end(), t_.begin(), unOpScaleE(rho));
+		return *this;
+	}
+	;
+
 	// Functors defined for unary operations (transformations) to the factor table:
 
 	///
@@ -521,6 +560,7 @@ public:
 			return std::abs(a);
 		}
 	};
+
 
 	///
 	/// \brief Functor for exponential value transformation.
@@ -551,6 +591,42 @@ public:
 		;
 		value operator()(value a) {
 			return std::log(a) / l;
+		}
+	};
+
+	///
+	/// \brief Functor for log value transformation.
+	///
+	struct unOpPhiMaxE {
+		value e;
+		unOpPhiMaxE(value E) :
+				e(E) {
+		}
+		;
+		value operator()(value a) {
+			return std::ceil(std::log(a) / std::log(1.0 + e));
+		}
+	};
+
+	struct unOpPhiMinE {
+		value e;
+		unOpPhiMinE(value E) :
+				e(E) {
+		}
+		;
+		value operator()(value a) {
+			return std::floor(std::log(a) / std::log(1.0 + e));
+		}
+	};
+
+	struct unOpScaleE {
+		value e;
+		unOpScaleE(value E) :
+				e(E) {
+		}
+		;
+		value operator()(value a) {
+			return std::floor(a * e);
 		}
 	};
 
@@ -648,6 +724,19 @@ public:
 		} else {
 			for (size_t i = 0; i < numel(); ++i) {
 				if (t_[i] != B.t_[i]) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+
+	bool is_equal_as_int(const factor& B) const {
+		if (v_ != B.v_) {
+			return false;
+		} else {
+			for (size_t i = 0; i < numel(); ++i) {
+				if (int(t_[i]) != int(B.t_[i])) {
 					return false;
 				}
 			}
@@ -1014,6 +1103,15 @@ public:
 	value sum() const {
 		return std::accumulate(t_.begin(), t_.end(), 0.0, std::plus<value>());
 	};
+
+	value manhattan(const factor& f) {
+		assert (t_.size() == f.t_.size()); // factors need to be the same size
+		value dist = 0;
+		for (size_t i = 0; i < t_.size(); ++i) {
+			dist += std::abs(t_[i] - f.t_[i]);
+		}
+		return dist;
+	}
 
 	///
 	/// Elimination by weighted summation.
@@ -1501,7 +1599,7 @@ public:
 	/// @return 
 	///
 	value get_value(std::map<size_t, size_t>& config) {
-		assert(config.size() == v_.size());
+		assert(config.size() >= v_.size()); // scope is included in config
 		config_index idx(v_, true); // default big endian
 		size_t i = idx.convert(config);
 		assert(i >= 0 && i < t_.size());
@@ -1514,7 +1612,7 @@ public:
 	/// @param val the corresponding table value
 	///
 	void set_value(std::map<size_t, size_t>& config, value val) {
-		assert(config.size() == v_.size());
+		assert(config.size() >= v_.size()); // scope is included in config
 		config_index idx(v_, true); // default big endian
 		size_t i = idx.convert(config);
 		assert(i >= 0 && i < t_.size());

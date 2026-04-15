@@ -46,7 +46,7 @@ void bn2cn::run() {
 	init();
 
 	// Check if all variables are bi-valued
-	bool bivalued = true;
+	bool bivalued = m_force_bivalued;
 	for (size_t i = 0; i < nvar(); ++i) {
 		if (m_dims[i] != 2) {
 			bivalued = false;
@@ -55,7 +55,7 @@ void bn2cn::run() {
 	}
 
 	// Update the factors so that they all have two values per variable
-	if (!bivalued) {
+	if (m_force_bivalued) {
 		for (size_t i = 0; i < m_factors.size(); ++i) {
 			interval& f = m_factors[i];
 			variable_set vs;

@@ -93,7 +93,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , Epsilon,Verbose,Seed );
+	MER_ENUM( Property , Epsilon,Verbose,Seed,BiValued );
 
 
 	// Setting properties (directly or through property string):
@@ -104,7 +104,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("Epsilon=0.0,Verbose=1,Seed=0");
+			set_properties("Epsilon=0.0,Verbose=1,Seed=0,BiValued=0");
 			return;
 		}
 		m_verbose = 1;
@@ -116,6 +116,9 @@ public:
 				m_epsilon = atof(asgn[1].c_str());
 			case Property::Verbose:
 				m_verbose = atol(asgn[1].c_str());
+				break;
+			case Property::BiValued:
+				m_force_bivalued = atol(asgn[1].c_str());
 				break;
 			case Property::Seed:
 				m_seed = atol(asgn[1].c_str());
@@ -137,6 +140,7 @@ protected:
 	double m_epsilon;								///< Epsilon for intervals
 	size_t m_verbose;								///< Verbosity level
 	size_t m_seed;									///< Random number generator seed
+	bool m_force_bivalued;							///< Force CN with bi-valued variables
 };
 
 } // namespace

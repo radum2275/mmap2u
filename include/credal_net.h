@@ -32,6 +32,8 @@
 #include "graph.h"
 #include "directed_graph.h"
 
+#include <random>
+#include <algorithm>
 namespace merlin {
 
 ///
@@ -488,6 +490,23 @@ public:
 
 	// Distribution-based operators:
 
+	/// @brief Create the moral graph of the credal network
+	/// @return the moral graph
+	graph moralize() {
+		std::vector<variable_set> adj = mrf();
+		size_t n = nvar();
+		graph g(n); // create the undirected graph (moral graph)
+		for (size_t i = 0; i < adj.size(); ++i) {
+			const variable_set& vi = adj[i];
+			for (variable_set::const_iterator cj = vi.begin();
+					cj != vi.end(); ++cj) {
+				size_t j = _vindex(*cj);
+				g.add_edge(i, j);
+			}
+		}
+
+		return g;
+	}
 
 	// Ordering: variable (elimination) orders and factor orders
 
@@ -1233,9 +1252,13 @@ protected:
 	variable_order_t order_random() const {
 		variable_order_t order;
 		order.resize(nvar());
-		for (size_t i = 0; i < nvar(); i++)
+		for (size_t i = 0; i < nvar(); i++) {
 			order[i] = var(i).label();		// build a list of all the variables
-		std::random_shuffle(order.begin(), order.end());// and randomly permute them
+		}
+
+		// The random number generator that we want to use (Mersenne Twister)
+		std::mt19937 rng(42);
+		std::shuffle(order.begin(), order.end(), rng);// and randomly permute them
 		return order;
 	}
 
@@ -1248,7 +1271,7 @@ protected:
 	// Members:
 
 	std::vector<flist> m_vadj;		///< Variable adjacency lists (variables to factors)
-	std::vector<double> m_dims;		///< Dimensions of variables as stored in graphical model object
+	std::vector<size_t> m_dims;		///< Dimensions of variables as stored in graphical model object
 	size_t m_width;					///< Induced width of the credal network
 
 };

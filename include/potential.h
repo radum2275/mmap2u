@@ -29,8 +29,11 @@
 
 
 #include <float.h>
+#include <random>
+#include <algorithm>
 
 #include "factor.h"
+#include "kmeans.h"
 
 namespace merlin {
 
@@ -64,22 +67,29 @@ public:
     ///
     potential() {
         // empty potential
+        original_ = true;
     }
     
     /// @brief Creates a scalar potential
     /// @param s a real-valued scalar (default is 1.0)
     potential(value s) {
         p_.push_back(factor(s));
-        q_.push_back(factor(s));
+        // q_.push_back(factor(s));
+        original_ = true;
     };
 
+    potential(const factor& f) {
+        p_.push_back(f);
+        original_ = false;
+        v_ = f.vars();
+    }
 	///
 	/// \brief Copy-constructor.
 	///
 	/// Constructs a copy from an object of the same type.
 	///
 	potential(potential const& f) :
-			v_(f.v_), p_(f.p_), q_(f.q_) {
+			v_(f.v_), p_(f.p_), q_(f.q_), original_(f.original_) {
 	};
 
 	///
@@ -102,6 +112,7 @@ public:
 			v_ = rhs.v_;
 			p_ = rhs.p_;
 			q_ = rhs.q_;
+            original_ = rhs.original_;
 		}
 		return *this;
 	};
@@ -218,34 +229,404 @@ public:
     /// \brief Remove dominated factors by max (p-component)
     ///
     void maximize() {
-        std::vector<factor> cleaned;
+        std::vector<factor> elements; // Pareto front
+
         for (size_t i = 0; i < p_.size(); ++i) {
-            bool found_maximal = false;
-            for (size_t j = 0; j < p_.size(); ++j) {
-                if (i != j && p_[j] > p_[i]) {
-                    found_maximal = true;
+            factor& val = p_[i]; // new value to be added
+
+            size_t ii = 0;
+            bool not_pareto = false;
+            while ( ii < elements.size() ) {
+                if ( elements[ii] >= val ) { // val is dominated by element ii
+                    not_pareto = true;
+                    break;
+                }
+                if ( elements[ii] <= val ) {
+                    // element ii is dominated by the new element, we remove element ii
+                    elements.erase ( elements.begin() +ii );
+                } else {
+                    ii++;
+                }
+            }
+
+            // we have a new pareto element: add it to the current set
+            if (not_pareto == false) {
+                elements.push_back ( val );
+            }
+        }
+
+        // replace the potential's factors with the minimal ones
+        p_ = elements;
+    }
+
+    ///
+    /// \brief Compute an e-covering (p-component)
+    /// \param eps the epsilon value for the covering (1+eps)
+    /// \param max the flag indicating maximization or minimization
+    ///
+    void covering(double eps = 0.1, bool max = true) {
+        std::vector<std::pair<factor, factor> > gamma;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor f = p_[i]; // copy
+            if (max == true) {
+                f.phi_max(eps); // transform the factor
+            } else {
+                f.phi_min(eps); // transform the factor
+            }
+
+            // Check if the transformed factor is already in covering
+            bool found = false;
+            for (size_t j = 0; j < gamma.size(); ++j) {
+                if (f == gamma[j].first) {
+                    bool found = true;
                     break;
                 }
             }
 
-            if (!found_maximal) {
-                bool found = false;
-                for (size_t j = 0; j < cleaned.size(); ++j) {
-                    if (p_[i] == cleaned[j]) {
-                        found = true;
+            // Remove all dominated transformed factors from gamma
+            if (!found) {
+                std::vector<std::pair<factor, factor> > cleaned;
+                for (size_t j = 0; j < gamma.size(); ++j) {
+                    if (max == true) {
+                        if (f >= gamma[j].first) {
+                            continue;
+                        } else {
+                            cleaned.push_back(gamma[j]); // undominated
+                        }
+                    } else {
+                        if (f <= gamma[j].first) {
+                            continue;
+                        } else {
+                            cleaned.push_back(gamma[j]); // undominated
+                        }
                     }
                 }
 
-                if (!found) {
-                    cleaned.push_back(p_[i]);
+                gamma.clear();
+                gamma = cleaned;
+                gamma.push_back(std::make_pair(f, p_[i]));
+                cleaned.clear();
+            }            
+        }
+
+        // replace the potential's factors with the covering
+        p_.clear();
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            p_.push_back(gamma[i].second);
+        }
+
+        gamma.clear();
+    }
+
+    ///
+    /// \brief Compute an e-covering (p-component)
+    /// \param eps the epsilon value for the covering (1+eps)
+    /// \param max the flag indicating maximization or minimization
+    ///
+    void covering_bound(double eps = 0.1, bool max = true) {
+        
+        // Logarithmic grid (gamma)
+        typedef std::vector<factor> factors;
+        std::vector<std::pair<factor, factors> > gamma;
+
+        // Map all factors of the potential onto the logarithmic grid
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor f = p_[i]; // copy
+            if (max == true) {
+                f.phi_max(eps); // transform the factor
+            } else {
+                f.phi_min(eps); // transform the factor
+            }
+
+            // Check if the transformed factor is already in covering
+            bool found = false;
+            for (size_t j = 0; j < gamma.size(); ++j) {
+                if (f.is_equal_as_int(gamma[j].first)) {
+                    bool found = true;
+                    gamma[j].second.push_back(p_[i]);
+                    break;
                 }
+            }
+
+            if (!found) { // create new grid cell
+                factors temp;
+                temp.push_back(p_[i]);
+                gamma.push_back(std::make_pair(f, temp));
             }
         }
 
-        // replace the potential's factors with the maximal ones
-        p_ = cleaned;
+        std::cout << "Grid cells: " << gamma.size() << std::endl;
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            std::cout << "Cell " << i << ": " << gamma[i].first << " | " << gamma[i].second.size() << std::endl;
+        }
+
+        // Compute the undominated grid cells
+        std::vector<std::pair<factor, factors> > undominated;
+        for (size_t j = 0; j < gamma.size(); ++j) {
+            factor& c = gamma[j].first; // grid cell
+
+            // Check if grid cell is dominated
+            bool found = false;
+            for (size_t i = 0; i < undominated.size(); ++i) {
+                if (max == true) {
+                    if (undominated[i].first >= c) {
+                        found = true;
+                        break;
+                    }
+                } else {
+                    if (undominated[i].first <= c) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found) {
+                
+                std::vector<std::pair<factor, factors> > cleaned;
+                for (size_t i = 0; i < undominated.size(); ++i) {
+                    if (max == true) {
+                        if (c >= undominated[i].first) {
+                            continue; // skip dominated grid cells
+                        } else {
+                            cleaned.push_back(undominated[i]);
+                        }
+                    } else {
+                        if (c <= undominated[i].first) {
+                            continue; // skip dominated grid cells
+                        } else {
+                            cleaned.push_back(undominated[i]);
+                        }
+                    }
+                }
+
+                undominated.clear();
+                undominated = cleaned;
+                undominated.push_back(gamma[j]);
+            }
+        }
+
+        std::cout << "Undominated Grid cells: " << undominated.size() << std::endl;
+        for (size_t i = 0; i < undominated.size(); ++i) {
+            std::cout << "Cell " << i << ": " << undominated[i].first << " | " << undominated[i].second.size() << std::endl;
+        }
+
+        // For each nondominated grid cell, keep the PLUB/PGLB of its points
+        p_.clear();
+        for (size_t i = 0; i < undominated.size(); ++i) {
+            if (max == true) {
+                factor f = plub(undominated[i].second);
+                p_.push_back(f);
+            } else {
+                factor f = pglb(undominated[i].second);
+                p_.push_back(f);
+            }
+        }
     }
 
+    /// @brief Compute a kmeans clustering of the potential with PLUB per cluster.
+    /// @param k the number of clusters
+    void kmeans_bound(size_t k) {
+        
+        if (p_.size() > k) {
+            // Create the k-means clustering algorithm
+            kmeans cls(k, 10, "manhattan");
+            std::vector<std::vector<double> > bounds;
+            std::vector<point> points;
+            for (size_t i = 0; i < p_.size(); ++i) {
+                point p(i, p_[i].get_table());
+                points.push_back(p);
+            }
+
+            cls.run(points);
+            bounds = cls.get_bounds();
+
+            // Make the approximate potential
+            variable_set vs = p_[0].vars();
+            p_.clear();
+            for (size_t i = 0; i < bounds.size(); ++i) {
+                factor f(vs, bounds[i]);
+                p_.push_back(f);
+            }
+        }
+    }
+
+    ///
+    /// @brief Compute the PLUB(1) for a list of factors.
+    /// @param fs the input list of factors
+    /// @return the PLUB(1) of the input factors
+    ///
+    factor plub(std::vector<factor>& fs) {
+        factor f(fs[0]); // copy first element of the p-component
+        for (size_t j = 0; j < f.numel(); ++j) {
+            value v = f[j];
+            for (size_t i = 0; i < fs.size(); ++i) {
+                v = std::max(v, fs[i][j]);
+            }
+            f[j] = v;
+        }
+
+        return f;
+    }
+
+    ///
+    /// @brief Compute the PGLB(1) for a list of factors.
+    /// @param fs the input list of factors
+    /// @return the PGLB(1) of the input factors
+    ///
+    factor pglb(std::vector<factor>& fs) {
+        factor f(fs[0]); // copy first element of the p-component
+        for (size_t j = 0; j < f.numel(); ++j) {
+            value v = f[j];
+            for (size_t i = 0; i < fs.size(); ++i) {
+                v = std::min(v, fs[i][j]);
+            }
+            f[j] = v;
+        }
+
+        return f;
+    }
+
+    ///
+    /// \brief Compute least upper bound (p-component)
+    /// \param b the maximum size of the vector
+    ///
+    void plub(size_t b = 1) {
+
+        std::vector<factor> gamma;
+        if (b == 1) { // special case
+            factor f(p_[0]); // copy first element of the p-component
+            for (size_t j = 0; j < f.numel(); ++j) {
+                value v = f[j];
+                for (size_t i = 0; i < p_.size(); ++i) {
+                    v = std::max(v, p_[i][j]);
+                }
+                f[j] = v;
+            }
+
+            gamma.push_back(f);
+        } else {
+            // The random number generator that we want to use (Mersenne Twister)
+            std::mt19937 rng(42);
+            gamma = p_; // make a copy
+            while (gamma.size() > b) {
+                size_t n = gamma.size();
+                std::uniform_int_distribution<int> idist(0, n - 1); //(inclusive, inclusive)
+                size_t i = (size_t) idist(rng);
+
+                factor& v = gamma[i];
+                value min_dist = infty(); // look for the min Manhattan distance
+                int min_cand = -1;
+                for (size_t j = 0; j < gamma.size(); ++j) {
+                    if (i != j) {
+                        factor& w = gamma[j];
+                        value dist = v.manhattan(w);
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            min_cand = j;
+                        }
+                    }                   
+                }
+
+                factor& w = gamma[min_cand];
+                factor u = v; // make a copy
+                for (size_t k = 0; k < u.numel(); ++k) {
+                    u[k] = std::max(u[k], w[k]);
+                }
+
+                // Erase the two elements v and w
+                if (i < min_cand) {
+                    gamma.erase(gamma.begin() + min_cand);
+                    gamma.erase(gamma.begin() + i);
+                } else {
+                    gamma.erase(gamma.begin() + i);
+                    gamma.erase(gamma.begin() + min_cand);
+                }
+
+                // Add the new element u to the vector
+                gamma.push_back(u);
+            }
+        }
+
+        // replace the potential's factors with the covering
+        p_.clear();
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            p_.push_back(gamma[i]);
+        }
+
+        gamma.clear();
+    }
+
+    ///
+    /// \brief Compute greatest lower bound (p-component)
+    /// \param b the maximum size of the vector
+    ///
+    void pglb(size_t b = 1) {
+
+        std::vector<factor> gamma;
+        if (b == 1) { // special case
+            factor f(p_[0]); // copy first element of the p-component
+            for (size_t j = 0; j < f.numel(); ++j) {
+                value v = f[j];
+                for (size_t i = 0; i < p_.size(); ++i) {
+                    v = std::min(v, p_[i][j]);
+                }
+                f[j] = v;
+            }
+
+            gamma.push_back(f);
+        } else {
+            // The random number generator that we want to use (Mersenne Twister)
+            std::mt19937 rng(42);
+            gamma = p_; // make a copy
+            while (gamma.size() > b) {
+                size_t n = gamma.size();
+                std::uniform_int_distribution<int> idist(0, n - 1); //(inclusive, inclusive)
+                size_t i = (size_t) idist(rng);
+
+                factor& v = gamma[i];
+                value min_dist = infty(); // look for the min Manhattan distance
+                int min_cand = -1;
+                for (size_t j = 0; j < gamma.size(); ++j) {
+                    if (i != j) {
+                        factor& w = gamma[j];
+                        value dist = v.manhattan(w);
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            min_cand = j;
+                        }
+                    }                   
+                }
+
+                factor& w = gamma[min_cand];
+                factor u = v; // make a copy
+                for (size_t k = 0; k < u.numel(); ++k) {
+                    u[k] = std::min(u[k], w[k]);
+                }
+
+                // Erase the two elements v and w
+                if (i < min_cand) {
+                    gamma.erase(gamma.begin() + min_cand);
+                    gamma.erase(gamma.begin() + i);
+                } else {
+                    gamma.erase(gamma.begin() + i);
+                    gamma.erase(gamma.begin() + min_cand);
+                }
+
+                // Add the new element u to the vector
+                gamma.push_back(u);
+            }
+        }
+
+        // replace the potential's factors with the covering
+        p_.clear();
+        for (size_t i = 0; i < gamma.size(); ++i) {
+            p_.push_back(gamma[i]);
+        }
+
+        gamma.clear();
+    }
+        
     ///
     /// \brief Remove dominated factors by max (p-component, q-component)
     ///
@@ -290,35 +671,38 @@ public:
     }
 
     ///
-    /// \brief Remove dominated factors by min (p-component)
+    /// \brief Remove all non-minimal (dominated) factors by min (p-component)
     ///
-    void minimize() {		
-        std::vector<factor> cleaned;
+    void minimize() {	
+ 
+        std::vector<factor> elements; // Pareto front
+
         for (size_t i = 0; i < p_.size(); ++i) {
-            bool found_minimal = false;
-            for (size_t j = 0; j < p_.size(); ++j) {
-                if (i != j && p_[j] < p_[i]) {
-                    found_minimal = true;
+            factor& val = p_[i]; // new value to be added
+
+            size_t ii = 0;
+            bool not_pareto = false;
+            while ( ii < elements.size() ) {
+                if ( elements[ii] <= val ) { // val is dominated by element ii
+                    not_pareto = true;
                     break;
+                }
+                if ( elements[ii] >= val ) {
+                    // element ii is dominated by the new element, we remove element ii
+                    elements.erase ( elements.begin() +ii );
+                } else {
+                    ii++;
                 }
             }
 
-            if (!found_minimal) {
-                bool found = false;
-                for (size_t j = 0; j < cleaned.size(); ++j) {
-                    if (p_[i] == cleaned[j]) {
-                        found = true;
-                    }
-                }
-
-                if (!found) {
-                    cleaned.push_back(p_[i]);
-                }
+            // we have a new pareto element: add it to the current set
+            if (not_pareto == false) {
+                elements.push_back ( val );
             }
         }
 
         // replace the potential's factors with the minimal ones
-        p_ = cleaned;
+        p_ = elements;
     }
 
     ///
@@ -362,7 +746,17 @@ public:
 			p_.push_back(cleaned[i].first);
 			q_.push_back(cleaned[i].second);
 		}
-     }
+    }
+
+    ///
+    /// \brief Select randomly a function (by index) in the potential
+    ///
+    size_t select(std::mt19937& rng) {
+        size_t n = p_.size();
+        std::uniform_int_distribution<int> idist(0, n - 1); //(inclusive, inclusive)
+        size_t i = (size_t) idist(rng);
+        return i;
+    }
 
     // Combination and marginalization operations (in place)
 
@@ -389,6 +783,51 @@ public:
         std::vector<factor> temp;
         for (size_t i = 0; i < p_.size(); ++i) {
             factor t = p_[i].sum(variable_set(v));
+            temp.push_back(t);
+        }
+
+        // Replace with the new marginalized factors
+        p_ = temp;
+    }
+
+    ///
+    /// \brief Eliminate a variable by maximization
+    ///
+    void elim_max(variable v) {
+        v_ /= v;
+        std::vector<factor> temp;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor t = p_[i].max(variable_set(v));
+            temp.push_back(t);
+        }
+
+        // Replace with the new marginalized factors
+        p_ = temp;
+    }
+
+    ///
+    /// \brief Eliminate a variable by summation
+    ///
+    void elim_sum(variable v) {
+        v_ /= v;
+        std::vector<factor> temp;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor t = p_[i].sum(variable_set(v));
+            temp.push_back(t);
+        }
+
+        // Replace with the new marginalized factors
+        p_ = temp;
+    }
+
+    ///
+    /// \brief Eliminate a variable by summation
+    ///
+    void elim_sum_power(variable v, value pow) {
+        v_ /= v;
+        std::vector<factor> temp;
+        for (size_t i = 0; i < p_.size(); ++i) {
+            factor t = p_[i].sum_power(variable_set(v), pow);
             temp.push_back(t);
         }
 
@@ -552,7 +991,7 @@ public:
 
 	/// @brief Get the size of the potential
 	/// @return the number of elements in the potential
-	size_t size() const {
+	inline size_t size() const {
 		return p_.size();
 	}
 
@@ -563,13 +1002,37 @@ public:
 	/// \param i 	Index of the table element.
 	/// \param v 	New value to be written in the table.
 	///		
-	void set_p(vsize i, const factor& v) {
+	inline void set_p(vsize i, const factor& v) {
 		p_.at(i) = v;
 	}
-	void set_q(vsize i, const factor& v) {
+	inline void set_q(vsize i, const factor& v) {
 		q_.at(i) = v;
 	}
 
+    inline void set_original(bool f) {
+        original_ = f;
+    }
+    inline bool is_original() {
+        return original_;
+    }
+
+    /// @brief Get the upper/lower probability corresponding to a variable assignment
+    /// @param assignment is the variable assignment
+    /// @param upper indicates the upper or lower probability
+    /// @return a real value representing the upper/lower probability
+    inline double get_value(std::map<size_t, size_t>& assignment, bool upper) {
+        double result = (upper ? -INFINITY : INFINITY);
+        for (size_t i = 0; i < p_.size(); ++i) {
+            double v = p_[i].get_value(assignment);
+            if (upper) {
+                result = std::max(v, result);
+            } else {
+                result = std::min(v, result);
+            }
+        }
+
+        return result;
+    }
 
 	///
 	/// \brief Output operator (friend).
@@ -594,12 +1057,26 @@ public:
 		return out;
 	};
 
+    void approximate(size_t potential_approx, size_t potential_size, double eps) {
+        if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING) {
+            this->covering(eps, true);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_COVERING_BOUND) {
+            this->covering_bound(eps, true);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_LEAST_UPBO) {
+            this->plub(potential_size);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_GREATEST_LOBO) {
+            this->pglb(potential_size);
+        } else if (potential_approx == MERLIN_POTENTIAL_APPROX_KMEANS_BOUND) {
+            this->kmeans_bound(potential_size);
+        }
+    }
 
 protected:
 
 	variable_set v_;					///< Variable list vector (*scope*).
 	std::vector<factor> p_;				///< List of factors (the p-component)
     std::vector<factor> q_;             ///< List of factors (the q-component)
+    bool original_;                     ///< Original potential (true by default)
 
 };
 
